@@ -19,6 +19,8 @@ It replaces the "translate what's on screen" flow that disappeared when Google A
 
 ## Good to know
 
+- **Updates**: the settings screen checks GitHub Releases once a day (or when you tap **Check now**) and can download and install a new version. The first time, Android asks you to allow this app to install apps. The APK is streamed straight into the installer and is not kept on the phone.
+
 - **"This screen can't be captured…"**: the screen blocks screenshots (banking apps, DRM video), or the settings from step 4 are off.
 - **Papago opens slowly**: when Papago isn't running (e.g. right after you swipe it away from recent apps), Papago itself takes 3–5 seconds to start. This isn't caused by this app.
 - **Voice input**: registering as an assistant requires a speech recognition service, so the app includes an empty one. On the Note 20 the system speech recognizer didn't change, but on some devices voice input may stop working in apps that use the system speech recognizer.
