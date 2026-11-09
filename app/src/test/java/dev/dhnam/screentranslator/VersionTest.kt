@@ -16,6 +16,12 @@ class VersionTest {
 
     @Test fun compare_major() = assertTrue(Version.parse("1.0.0")!! > Version.parse("0.99.99")!!)
 
+    @Test fun parse_ignoresPreReleaseAndBuildSuffix() {
+        assertEquals(Version.parse("0.3.0"), Version.parse("v0.3.0-rc1"))
+        assertEquals(Version.parse("0.3.0"), Version.parse("0.3.0+build.5"))
+        assertTrue(Version.isNewer("v0.3.0-rc1", "0.2.0"))
+    }
+
     @Test fun parse_garbage_isNull() {
         assertNull(Version.parse("abc"))
         assertNull(Version.parse("1.x"))

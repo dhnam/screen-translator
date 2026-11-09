@@ -14,7 +14,8 @@ import java.net.URL
  */
 class UpdateInstaller(private val context: Context) {
 
-    fun install(info: ReleaseInfo, onProgress: (Int) -> Unit) {
+    /** `isCancelled`가 true가 되면 받기를 멈추고 세션을 버린다(IOException(CANCELLED)). */
+    fun install(info: ReleaseInfo, isCancelled: () -> Boolean = { false }, onProgress: (Int) -> Unit) {
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
@@ -32,6 +33,7 @@ class UpdateInstaller(private val context: Context) {
                 val hash = conn.inputStream.use { input ->
                     session.openWrite("base.apk", 0, if (info.size > 0) info.size else -1).use { out ->
                         val h = HashingCopy.copy(input, out) { done ->
+                            if (isCancelled()) throw IOException(CANCELLED)
                             if (info.size > 0) onProgress((done * 100 / info.size).toInt().coerceIn(0, 100))
                         }
                         session.fsync(out)
@@ -57,6 +59,7 @@ class UpdateInstaller(private val context: Context) {
 
     companion object {
         const val DIGEST_MISMATCH = "digest mismatch"
+        const val CANCELLED = "cancelled"
         private const val TIMEOUT_MS = 15_000
     }
 }

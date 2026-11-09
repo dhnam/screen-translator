@@ -43,8 +43,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # v0.3.0-rc1처럼 '-'가 들어간 태그는 프리릴리스로 올린다(releases/latest에 잡히지 않음).
+          PRE=""
+          case "$GITHUB_REF_NAME" in *-*) PRE="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" "screen-translator-${GITHUB_REF_NAME}.apk" \
-            --title "$GITHUB_REF_NAME" --generate-notes
+            --title "$GITHUB_REF_NAME" --generate-notes $PRE
 
       - name: Remove keystore
         if: always()

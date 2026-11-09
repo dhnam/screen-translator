@@ -21,7 +21,9 @@ data class Version(val parts: List<Int>) : Comparable<Version> {
 
         /** "v0.2.0", "0.2" 등을 해석한다. 숫자가 아닌 부분이 있으면 null. */
         fun parse(s: String?): Version? {
-            val t = s?.trim()?.removePrefix("v")?.removePrefix("V") ?: return null
+            // "v0.3.0-rc1", "0.3.0+build.5"처럼 뒤에 붙은 꼬리표는 무시하고 숫자 부분만 본다.
+            val t = s?.trim()?.removePrefix("v")?.removePrefix("V")?.substringBefore('-')?.substringBefore('+')
+                ?: return null
             if (t.isEmpty()) return null
             val parts = t.split('.').map { it.toIntOrNull() ?: return null }
             return Version(parts)

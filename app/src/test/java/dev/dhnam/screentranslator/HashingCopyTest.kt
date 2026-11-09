@@ -33,6 +33,14 @@ class HashingCopyTest {
         assertThrows(IOException::class.java) { HashingCopy.copy(broken, ByteArrayOutputStream()) {} }
     }
 
+    @Test fun copy_stopsWhenProgressThrows() {
+        val out = ByteArrayOutputStream()
+        assertThrows(IOException::class.java) {
+            HashingCopy.copy(ByteArrayInputStream(ByteArray(200_000)), out) { if (it >= 64 * 1024) throw IOException("cancelled") }
+        }
+        assertTrue(out.size() < 200_000)
+    }
+
     @Test fun hashesMatch_mismatch_isFalse() = assertFalse(HashingCopy.hashesMatch("aa", "bb"))
 
     @Test fun hashesMatch_missingExpected_isTrue() = assertTrue(HashingCopy.hashesMatch(null, "bb"))

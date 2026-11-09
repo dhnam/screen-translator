@@ -28,6 +28,7 @@ import android.widget.Toast
 import android.widget.TextView
 import java.io.File
 import java.io.IOException
+import java.lang.ref.WeakReference
 
 /** 앱 아이콘을 누르면 열리는 설정 화면: 번역 앱 선택, 어시스턴트 상태, 안내. */
 class SettingsActivity : Activity() {
@@ -38,7 +39,6 @@ class SettingsActivity : Activity() {
     private lateinit var updateStatus: TextView
     private lateinit var updateAction: Button
     private val main = Handler(Looper.getMainLooper())
-    private var updateBusy = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,15 +72,23 @@ class SettingsActivity : Activity() {
         status.setText(if (held) R.string.status_set else R.string.status_not_set)
         renderTargets()
         if (BuildConfig.UPDATE_ENABLED) {
-            if (!updateBusy) renderUpdate()
-            if (Version.shouldAutoCheck(System.currentTimeMillis(), prefs.updateCheckedAt)) startCheck()
+            current = WeakReference(this)
+            if (busy) showBusy() else renderUpdate()
+            if (!busy && Version.shouldAutoCheck(System.currentTimeMillis(), prefs.updateCheckedAt)) startCheck()
         } else {
             updateStatus.setText(R.string.update_disabled_dev)
             updateAction.visibility = View.GONE
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        // 화면을 벗어나면(회전 포함) 받던 업데이트를 취소한다. 설치 확인 창이 뜰 수 없는 상태에서 세션이 남지 않게 한다.
+        if (downloading) cancelDownload = true
+    }
+
     // --- 업데이트 ---
+    // 진행 상태는 Activity가 아니라 프로세스에 둔다. 회전으로 새 Activity가 생겨도 중복 실행되지 않게 한다.
 
     /** 저장된 마지막 결과로 업데이트 영역을 그린다. */
     private fun renderUpdate() {
@@ -98,31 +106,35 @@ class SettingsActivity : Activity() {
         }
     }
 
-    private fun startCheck() {
-        if (updateBusy) return
-        updateBusy = true
-        updateStatus.setText(R.string.update_checking)
+    private fun showBusy() {
+        updateStatus.setText(if (downloading) R.string.update_downloading_short else R.string.update_checking)
         updateAction.isEnabled = false
+    }
+
+    private fun showCheckFailed() {
+        updateStatus.setText(R.string.update_failed)
+        updateAction.isEnabled = true
+        updateAction.setText(R.string.update_retry)
+        updateAction.setOnClickListener { startCheck() }
+    }
+
+    private fun startCheck() {
+        if (busy) return
+        busy = true
+        showBusy()
         val checker = UpdateChecker(applicationContext)
         Thread {
             val ok = try { checker.check(); true } catch (e: IOException) { false }
             main.post {
-                updateBusy = false
-                if (isDestroyed) return@post
-                if (ok) {
-                    renderUpdate()
-                } else {
-                    updateStatus.setText(R.string.update_failed)
-                    updateAction.isEnabled = true
-                    updateAction.setText(R.string.update_retry)
-                    updateAction.setOnClickListener { startCheck() }
-                }
+                busy = false
+                val a = current?.get()?.takeIf { !it.isDestroyed } ?: return@post
+                if (ok) a.renderUpdate() else a.showCheckFailed()
             }
         }.start()
     }
 
     private fun startInstall(info: ReleaseInfo) {
-        if (updateBusy) return
+        if (busy) return
         if (!packageManager.canRequestPackageInstalls()) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.update_permission_title)
@@ -134,30 +146,49 @@ class SettingsActivity : Activity() {
                 .show()
             return
         }
-        updateBusy = true
+        busy = true
+        downloading = true
+        cancelDownload = false
         updateAction.isEnabled = false
         updateStatus.text = getString(R.string.update_downloading, 0)
-        val installer = UpdateInstaller(applicationContext)
+        val app = applicationContext
+        val installer = UpdateInstaller(app)
         Thread {
             val error: Int? = try {
                 var lastPct = -1
-                installer.install(info) { pct ->
+                installer.install(info, isCancelled = { cancelDownload }) { pct ->
                     if (pct != lastPct) {
                         lastPct = pct
-                        main.post { if (!isDestroyed) updateStatus.text = getString(R.string.update_downloading, pct) }
+                        main.post {
+                            current?.get()?.takeIf { !it.isDestroyed }?.updateStatus?.text =
+                                app.getString(R.string.update_downloading, pct)
+                        }
                     }
                 }
                 null
             } catch (e: IOException) {
-                if (e.message == UpdateInstaller.DIGEST_MISMATCH) R.string.update_corrupt else R.string.update_failed
+                when (e.message) {
+                    UpdateInstaller.CANCELLED -> null
+                    UpdateInstaller.DIGEST_MISMATCH -> R.string.update_corrupt
+                    else -> R.string.update_failed
+                }
             }
             main.post {
-                updateBusy = false
-                if (error != null) Toast.makeText(this, error, Toast.LENGTH_LONG).show()
-                if (!isDestroyed) renderUpdate()
+                busy = false
+                downloading = false
+                if (error != null) Toast.makeText(app, error, Toast.LENGTH_LONG).show()
+                current?.get()?.takeIf { !it.isDestroyed }?.renderUpdate()
             }
         }.start()
     }
+
+    private companion object {
+        @Volatile var busy = false
+        @Volatile var downloading = false
+        @Volatile var cancelDownload = false
+        var current: WeakReference<SettingsActivity>? = null
+    }
+
 
     private fun update(change: (TargetList) -> TargetList) {
         prefs.targetList = change(prefs.targetList)
