@@ -37,6 +37,17 @@ class PrefsTest {
         assertEquals(LENS, Prefs(ctx).targetList.default)
     }
 
+    @Test fun updateCheckedAt_defaultZero() = assertEquals(0L, Prefs(ctx).updateCheckedAt)
+
+    @Test fun latestRelease_roundTripAndClear() {
+        val r = ReleaseInfo("v0.3.0", "https://x/a.apk", 5, null)
+        Prefs(ctx).latestRelease = r
+        assertEquals(r, Prefs(ctx).latestRelease)
+        Prefs(ctx).latestRelease = null
+        assertEquals(null, Prefs(ctx).latestRelease)
+        assertFalse(sp.contains("update_tag"))
+    }
+
     @Test fun openingToast_default_isOff() = assertEquals(false, Prefs(ctx).showOpeningToast)
 
     @Test fun openingToast_roundTrip() {

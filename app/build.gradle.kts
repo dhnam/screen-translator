@@ -31,10 +31,13 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
+            buildConfigField("boolean", "UPDATE_ENABLED", "true")
         }
         // 개발용: 릴리스 앱과 나란히 설치되는 "화면 번역 (dev)"
         debug {
             applicationIdSuffix = ".dev"
+            // dev 앱은 릴리스 APK로 업데이트할 수 없으므로 업데이트 확인을 끈다.
+            buildConfigField("boolean", "UPDATE_ENABLED", "false")
         }
     }
     compileOptions {
@@ -43,6 +46,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     testOptions { unitTests.isIncludeAndroidResources = true }
+    buildFeatures { buildConfig = true }
 }
 
 dependencies {

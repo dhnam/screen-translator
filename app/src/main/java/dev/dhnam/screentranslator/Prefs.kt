@@ -29,6 +29,31 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_OPENING_TOAST, false)
         set(value) { sp.edit().putBoolean(KEY_OPENING_TOAST, value).apply() }
 
+    /** 마지막 업데이트 확인 시각(ms). 확인한 적이 없으면 0. */
+    var updateCheckedAt: Long
+        get() = sp.getLong(KEY_UPDATE_CHECKED_AT, 0L)
+        set(value) { sp.edit().putLong(KEY_UPDATE_CHECKED_AT, value).apply() }
+
+    /** 마지막 확인에서 찾은 새 버전. 새 버전이 없었으면 null. */
+    var latestRelease: ReleaseInfo?
+        get() {
+            val tag = sp.getString(KEY_UPDATE_TAG, null) ?: return null
+            val url = sp.getString(KEY_UPDATE_URL, null) ?: return null
+            return ReleaseInfo(tag, url, sp.getLong(KEY_UPDATE_SIZE, 0L), sp.getString(KEY_UPDATE_SHA256, null))
+        }
+        set(value) {
+            sp.edit().apply {
+                if (value == null) {
+                    remove(KEY_UPDATE_TAG); remove(KEY_UPDATE_URL); remove(KEY_UPDATE_SIZE); remove(KEY_UPDATE_SHA256)
+                } else {
+                    putString(KEY_UPDATE_TAG, value.tag)
+                    putString(KEY_UPDATE_URL, value.url)
+                    putLong(KEY_UPDATE_SIZE, value.size)
+                    putString(KEY_UPDATE_SHA256, value.sha256)
+                }
+            }.commit()
+        }
+
     private fun write(list: TargetList, removeOld: Boolean) {
         sp.edit().apply {
             putString(KEY_TARGETS, list.encodeItems())
@@ -42,5 +67,10 @@ class Prefs(context: Context) {
         const val KEY_DEFAULT = "default_target"
         const val KEY_OLD_TARGET = "target"
         const val KEY_OPENING_TOAST = "opening_toast"
+        const val KEY_UPDATE_CHECKED_AT = "update_checked_at"
+        const val KEY_UPDATE_TAG = "update_tag"
+        const val KEY_UPDATE_URL = "update_url"
+        const val KEY_UPDATE_SIZE = "update_size"
+        const val KEY_UPDATE_SHA256 = "update_sha256"
     }
 }
