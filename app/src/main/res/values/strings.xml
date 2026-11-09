@@ -17,4 +17,18 @@
     <string name="notice_screen_settings">In assistant settings, turn on both \'Use text from screen\' and \'Use screenshot\'.</string>
     <string name="notice_voice_input">While this app is your assistant, voice input may not work in some apps that use the system speech recognizer.</string>
     <string name="install_failed">Couldn\'t install the update (%1$s)</string>
+    <string name="update_title">Updates</string>
+    <string name="update_latest">You\'re up to date (v%1$s)</string>
+    <string name="update_available">Version %1$s is available</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_failed">Couldn\'t check for updates</string>
+    <string name="update_corrupt">The downloaded file is corrupted</string>
+    <string name="update_disabled_dev">Update check is off in the dev app</string>
+    <string name="update_check_now">Check now</string>
+    <string name="update_install">Update</string>
+    <string name="update_retry">Retry</string>
+    <string name="update_permission_title">Allow app installs</string>
+    <string name="update_permission_message">To install updates, allow this app to install apps.</string>
+    <string name="update_permission_open">Open settings</string>
 </resources>

@@ -17,4 +17,18 @@
     <string name="notice_screen_settings">어시스턴트 설정에서 \'화면의 텍스트 사용\'과 \'화면 이미지 사용\'을 둘 다 켜주세요.</string>
     <string name="notice_voice_input">이 앱을 어시스턴트로 쓰는 동안, 시스템 음성 인식을 쓰는 일부 앱에서는 음성 입력이 안 될 수 있어요.</string>
     <string name="install_failed">업데이트를 설치하지 못했어요 (%1$s)</string>
+    <string name="update_title">업데이트</string>
+    <string name="update_latest">최신 버전이에요 (v%1$s)</string>
+    <string name="update_available">새 버전 %1$s이 있어요</string>
+    <string name="update_checking">확인 중…</string>
+    <string name="update_downloading">받는 중… %1$d%%</string>
+    <string name="update_failed">업데이트를 확인하지 못했어요</string>
+    <string name="update_corrupt">받은 파일이 손상됐어요</string>
+    <string name="update_disabled_dev">개발용 앱은 업데이트 확인을 하지 않아요</string>
+    <string name="update_check_now">지금 확인</string>
+    <string name="update_install">업데이트</string>
+    <string name="update_retry">다시 시도</string>
+    <string name="update_permission_title">앱 설치 허용</string>
+    <string name="update_permission_message">업데이트를 설치하려면 이 앱이 앱을 설치할 수 있도록 허용해야 해요.</string>
+    <string name="update_permission_open">설정 열기</string>
 </resources>

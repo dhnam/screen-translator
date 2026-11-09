@@ -8,8 +8,11 @@ import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
@@ -24,6 +27,7 @@ import android.widget.RadioButton
 import android.widget.Toast
 import android.widget.TextView
 import java.io.File
+import java.io.IOException
 
 /** 앱 아이콘을 누르면 열리는 설정 화면: 번역 앱 선택, 어시스턴트 상태, 안내. */
 class SettingsActivity : Activity() {
@@ -31,6 +35,10 @@ class SettingsActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var resolver: TargetResolver
     private lateinit var targetsView: LinearLayout
+    private lateinit var updateStatus: TextView
+    private lateinit var updateAction: Button
+    private val main = Handler(Looper.getMainLooper())
+    private var updateBusy = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +51,9 @@ class SettingsActivity : Activity() {
         resolver = TargetResolver(packageManager, packageName)
         targetsView = findViewById(R.id.targets)
         findViewById<Button>(R.id.add_target).setOnClickListener { showAddDialog() }
+
+        updateStatus = findViewById(R.id.update_status)
+        updateAction = findViewById(R.id.update_action)
 
         findViewById<CheckBox>(R.id.opening_toast).apply {
             isChecked = prefs.showOpeningToast
@@ -60,6 +71,92 @@ class SettingsActivity : Activity() {
         val held = getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT)
         status.setText(if (held) R.string.status_set else R.string.status_not_set)
         renderTargets()
+        if (BuildConfig.UPDATE_ENABLED) {
+            if (!updateBusy) renderUpdate()
+            if (Version.shouldAutoCheck(System.currentTimeMillis(), prefs.updateCheckedAt)) startCheck()
+        } else {
+            updateStatus.setText(R.string.update_disabled_dev)
+            updateAction.visibility = View.GONE
+        }
+    }
+
+    // --- 업데이트 ---
+
+    /** 저장된 마지막 결과로 업데이트 영역을 그린다. */
+    private fun renderUpdate() {
+        val checker = UpdateChecker(this)
+        val latest = prefs.latestRelease?.takeIf { Version.isNewer(it.tag, checker.currentVersion()) }
+        updateAction.isEnabled = true
+        if (latest != null) {
+            updateStatus.text = getString(R.string.update_available, latest.tag)
+            updateAction.setText(R.string.update_install)
+            updateAction.setOnClickListener { startInstall(latest) }
+        } else {
+            updateStatus.text = getString(R.string.update_latest, checker.currentVersion())
+            updateAction.setText(R.string.update_check_now)
+            updateAction.setOnClickListener { startCheck() }
+        }
+    }
+
+    private fun startCheck() {
+        if (updateBusy) return
+        updateBusy = true
+        updateStatus.setText(R.string.update_checking)
+        updateAction.isEnabled = false
+        val checker = UpdateChecker(applicationContext)
+        Thread {
+            val ok = try { checker.check(); true } catch (e: IOException) { false }
+            main.post {
+                updateBusy = false
+                if (isDestroyed) return@post
+                if (ok) {
+                    renderUpdate()
+                } else {
+                    updateStatus.setText(R.string.update_failed)
+                    updateAction.isEnabled = true
+                    updateAction.setText(R.string.update_retry)
+                    updateAction.setOnClickListener { startCheck() }
+                }
+            }
+        }.start()
+    }
+
+    private fun startInstall(info: ReleaseInfo) {
+        if (updateBusy) return
+        if (!packageManager.canRequestPackageInstalls()) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.update_permission_title)
+                .setMessage(R.string.update_permission_message)
+                .setPositiveButton(R.string.update_permission_open) { _, _ ->
+                    startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+        updateBusy = true
+        updateAction.isEnabled = false
+        updateStatus.text = getString(R.string.update_downloading, 0)
+        val installer = UpdateInstaller(applicationContext)
+        Thread {
+            val error: Int? = try {
+                var lastPct = -1
+                installer.install(info) { pct ->
+                    if (pct != lastPct) {
+                        lastPct = pct
+                        main.post { if (!isDestroyed) updateStatus.text = getString(R.string.update_downloading, pct) }
+                    }
+                }
+                null
+            } catch (e: IOException) {
+                if (e.message == UpdateInstaller.DIGEST_MISMATCH) R.string.update_corrupt else R.string.update_failed
+            }
+            main.post {
+                updateBusy = false
+                if (error != null) Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+                if (!isDestroyed) renderUpdate()
+            }
+        }.start()
     }
 
     private fun update(change: (TargetList) -> TargetList) {
