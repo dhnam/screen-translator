@@ -16,4 +16,5 @@
     <string name="opening_toast_option">Show \'Opening…\' when launching the translator app</string>
     <string name="notice_screen_settings">In assistant settings, turn on both \'Use text from screen\' and \'Use screenshot\'.</string>
     <string name="notice_voice_input">While this app is your assistant, voice input may not work in some apps that use the system speech recognizer.</string>
+    <string name="install_failed">Couldn\'t install the update (%1$s)</string>
 </resources>
