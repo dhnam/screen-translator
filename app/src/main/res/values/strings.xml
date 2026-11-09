@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">화면 번역</string>
+    <string name="open_assist_settings">어시스턴트 설정 열기</string>
+</resources>
