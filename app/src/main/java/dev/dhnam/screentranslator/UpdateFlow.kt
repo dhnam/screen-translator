@@ -39,6 +39,14 @@ object UpdateFlow {
         listener?.invoke(n)
     }
 
+    /**
+     * 설정 화면이 다시 보일 때 부른다. 아직 "설치 확인 대기"라면 확인 창은 이미 닫혔거나 뜨지 못한 것이므로
+     * 기본 상태로 돌려 [업데이트]를 다시 누를 수 있게 한다. 늦게 오는 설치 결과는 기본 상태에서 무시된다.
+     */
+    fun onScreenReturned() {
+        if (state == UpdateUi.AwaitingInstall) dispatch(UpdateEvent.InstallFinished)
+    }
+
     /** 확인을 시작한다. 지금 상태에서 허용되지 않으면 false. `run`은 백그라운드에서 실행된다. */
     fun startCheck(run: () -> Unit): Boolean {
         if (state.next(UpdateEvent.CheckStarted) == state) return false

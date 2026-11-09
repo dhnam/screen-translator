@@ -56,6 +56,19 @@ class UpdateFlowTest {
         assertEquals(listOf(UpdateUi.Idle, UpdateUi.Downloading(0), UpdateUi.Downloading(50), UpdateUi.AwaitingInstall), seen)
     }
 
+    @Test fun screenReturns_whileAwaitingInstall_isIdle() {
+        UpdateFlow.startInstall({ }) { }
+        assertEquals(UpdateUi.AwaitingInstall, UpdateFlow.state)
+        UpdateFlow.onScreenReturned()
+        assertEquals(UpdateUi.Idle, UpdateFlow.state)
+    }
+
+    @Test fun screenReturns_otherStates_unchanged() {
+        UpdateFlow.startCheck { throw IOException("x") }
+        UpdateFlow.onScreenReturned()
+        assertEquals(UpdateUi.CheckFailed, UpdateFlow.state)
+    }
+
     @Test fun startInstall_cancelled_isIdleWithoutError() {
         var error: IOException? = null
         UpdateFlow.startInstall({ throw IOException(UpdateInstaller.CANCELLED) }) { error = it }

@@ -76,6 +76,7 @@ class SettingsActivity : Activity() {
         status.setText(if (held) R.string.status_set else R.string.status_not_set)
         renderTargets()
         if (BuildConfig.UPDATE_ENABLED) {
+            UpdateFlow.onScreenReturned()
             UpdateFlow.observe { renderUpdate(it) }
             if (Version.shouldAutoCheck(System.currentTimeMillis(), prefs.updateCheckedAt)) startCheck()
         } else {
@@ -91,8 +92,9 @@ class SettingsActivity : Activity() {
 
     override fun onStop() {
         super.onStop()
-        // 화면을 벗어나면(회전 포함) 받던 업데이트를 취소한다. 설치 확인 창이 뜰 수 없는 상태에서 세션이 남지 않게 한다.
-        if (UpdateFlow.state is UpdateUi.Downloading) UpdateFlow.cancelRequested = true
+        // 화면을 벗어나면 받던 업데이트를 취소한다. 설치 확인 창이 뜰 수 없는 상태에서 세션이 남지 않게 한다.
+        // 회전처럼 화면만 다시 만들어지는 경우는 상태가 UpdateFlow에 남으므로 계속 받는다.
+        if (!isChangingConfigurations && UpdateFlow.state is UpdateUi.Downloading) UpdateFlow.cancelRequested = true
     }
 
     // --- 업데이트 ---
