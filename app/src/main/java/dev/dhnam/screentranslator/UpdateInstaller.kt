@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
+import android.os.Build
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -15,10 +16,12 @@ import java.net.URL
 class UpdateInstaller(private val context: Context) {
 
     /** `isCancelled`가 true가 되면 받기를 멈추고 세션을 버린다(IOException(CANCELLED)). */
-    fun install(info: ReleaseInfo, isCancelled: () -> Boolean = { false }, onProgress: (Int) -> Unit) {
+    /** 확정한 세션 번호를 돌려준다. */
+    fun install(info: ReleaseInfo, isCancelled: () -> Boolean = { false }, onProgress: (Int) -> Unit): Int {
         val installer = context.packageManager.packageInstaller
-        // 이전에 취소되거나 확인 창이 뜨지 못해 남은 세션을 정리한다.
+        // 이전에 받다가 멈춰 남은(확정 전) 세션을 정리한다. 확정된 세션은 설치 확인·검사·설치 중일 수 있으므로 건드리지 않는다.
         for (stale in installer.mySessions) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && stale.isCommitted) continue
             try { installer.abandonSession(stale.sessionId) } catch (e: SecurityException) { }
         }
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
@@ -55,6 +58,7 @@ class UpdateInstaller(private val context: Context) {
             )
             session.commit(result.intentSender)
             session.close()
+            return id
         } catch (e: Exception) {
             session.abandon()
             throw e as? IOException ?: IOException(e)

@@ -39,12 +39,18 @@ object UpdateFlow {
         listener?.invoke(n)
     }
 
+    /** 확정한 설치 세션 번호. "설치 확인 대기"일 때만 의미가 있다. */
+    @Volatile var pendingSessionId: Int? = null
+        private set
+
     /**
-     * 설정 화면이 다시 보일 때 부른다. 아직 "설치 확인 대기"라면 확인 창은 이미 닫혔거나 뜨지 못한 것이므로
-     * 기본 상태로 돌려 [업데이트]를 다시 누를 수 있게 한다. 늦게 오는 설치 결과는 기본 상태에서 무시된다.
+     * 설정 화면이 다시 보일 때 부른다. "설치 확인 대기"인데 그 세션이 이미 없으면(확인 창이 닫혔거나 뜨지 못함)
+     * 기본 상태로 돌린다. 세션이 살아 있으면(설치 확인·Play 프로텍트 검사·설치 진행 중) 그대로 둔다.
      */
-    fun onScreenReturned() {
-        if (state == UpdateUi.AwaitingInstall) dispatch(UpdateEvent.InstallFinished)
+    fun onScreenReturned(isSessionAlive: (Int) -> Boolean) {
+        if (state != UpdateUi.AwaitingInstall) return
+        val id = pendingSessionId
+        if (id == null || !isSessionAlive(id)) dispatch(UpdateEvent.InstallFinished)
     }
 
     /** 확인을 시작한다. 지금 상태에서 허용되지 않으면 false. `run`은 백그라운드에서 실행된다. */
@@ -59,17 +65,20 @@ object UpdateFlow {
     }
 
     /**
-     * 받기와 설치 세션 확정을 시작한다. `run`은 진행률 콜백을 받아 백그라운드에서 실행된다.
+     * 받기와 설치 세션 확정을 시작한다. `run`은 진행률 콜백을 받아 백그라운드에서 실행되고, 확정한 세션 번호를 돌려준다.
      * 취소가 아닌 실패는 `onError`로 알린다(메인 스레드).
      */
-    fun startInstall(run: ((Int) -> Unit) -> Unit, onError: (IOException) -> Unit): Boolean {
+    fun startInstall(run: ((Int) -> Unit) -> Int, onError: (IOException) -> Unit): Boolean {
         if (state.next(UpdateEvent.DownloadStarted) == state) return false
         cancelRequested = false
         dispatch(UpdateEvent.DownloadStarted)
         background(Runnable {
             try {
-                run { pct -> main(Runnable { dispatch(UpdateEvent.Progress(pct)) }) }
-                main(Runnable { dispatch(UpdateEvent.Committed) })
+                val sessionId = run { pct -> main(Runnable { dispatch(UpdateEvent.Progress(pct)) }) }
+                main(Runnable {
+                    pendingSessionId = sessionId
+                    dispatch(UpdateEvent.Committed)
+                })
             } catch (e: IOException) {
                 val cancelled = e.message == UpdateInstaller.CANCELLED
                 main(Runnable {
@@ -84,6 +93,7 @@ object UpdateFlow {
     internal fun resetForTest() {
         state = UpdateUi.Idle
         cancelRequested = false
+        pendingSessionId = null
         listener = null
         background = { Thread(it).start() }
         main = { mainHandler.post(it) }

@@ -52,20 +52,28 @@ class UpdateFlowTest {
 
     @Test fun startInstall_success_awaitingInstall() {
         UpdateFlow.observe { seen += it }
-        UpdateFlow.startInstall({ progress -> progress(50) }) { }
+        UpdateFlow.startInstall({ progress -> progress(50); 1 }) { }
         assertEquals(listOf(UpdateUi.Idle, UpdateUi.Downloading(0), UpdateUi.Downloading(50), UpdateUi.AwaitingInstall), seen)
     }
 
-    @Test fun screenReturns_whileAwaitingInstall_isIdle() {
-        UpdateFlow.startInstall({ }) { }
+    @Test fun screenReturns_sessionGone_isIdle() {
+        UpdateFlow.startInstall({ 7 }) { }
         assertEquals(UpdateUi.AwaitingInstall, UpdateFlow.state)
-        UpdateFlow.onScreenReturned()
+        UpdateFlow.onScreenReturned { false }
         assertEquals(UpdateUi.Idle, UpdateFlow.state)
+    }
+
+    @Test fun screenReturns_sessionStillAlive_staysAwaiting() {
+        var asked: Int? = null
+        UpdateFlow.startInstall({ 7 }) { }
+        UpdateFlow.onScreenReturned { id -> asked = id; true }
+        assertEquals(7, asked)
+        assertEquals(UpdateUi.AwaitingInstall, UpdateFlow.state)
     }
 
     @Test fun screenReturns_otherStates_unchanged() {
         UpdateFlow.startCheck { throw IOException("x") }
-        UpdateFlow.onScreenReturned()
+        UpdateFlow.onScreenReturned { false }
         assertEquals(UpdateUi.CheckFailed, UpdateFlow.state)
     }
 

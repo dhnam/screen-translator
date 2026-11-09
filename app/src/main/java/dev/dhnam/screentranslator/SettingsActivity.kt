@@ -76,7 +76,7 @@ class SettingsActivity : Activity() {
         status.setText(if (held) R.string.status_set else R.string.status_not_set)
         renderTargets()
         if (BuildConfig.UPDATE_ENABLED) {
-            UpdateFlow.onScreenReturned()
+            UpdateFlow.onScreenReturned { id -> packageManager.packageInstaller.getSessionInfo(id) != null }
             UpdateFlow.observe { renderUpdate(it) }
             if (Version.shouldAutoCheck(System.currentTimeMillis(), prefs.updateCheckedAt)) startCheck()
         } else {
