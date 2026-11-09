@@ -36,4 +36,6 @@
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="update_awaiting_install">Waiting for install confirmation…</string>
+    <string name="update_download_failed">Couldn\'t download the update</string>
 </resources>

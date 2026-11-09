@@ -36,4 +36,6 @@
     <string name="theme_system">시스템 설정 따르기</string>
     <string name="theme_light">라이트</string>
     <string name="theme_dark">다크</string>
+    <string name="update_awaiting_install">설치 확인 중…</string>
+    <string name="update_download_failed">업데이트를 받지 못했어요</string>
 </resources>
