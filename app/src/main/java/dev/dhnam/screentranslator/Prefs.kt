@@ -51,17 +51,22 @@ class Prefs(context: Context) {
         get() {
             val tag = sp.getString(KEY_UPDATE_TAG, null) ?: return null
             val url = sp.getString(KEY_UPDATE_URL, null) ?: return null
-            return ReleaseInfo(tag, url, sp.getLong(KEY_UPDATE_SIZE, 0L), sp.getString(KEY_UPDATE_SHA256, null))
+            return ReleaseInfo(
+                tag, url, sp.getLong(KEY_UPDATE_SIZE, 0L), sp.getString(KEY_UPDATE_SHA256, null),
+                apiUrl = sp.getString(KEY_UPDATE_API_URL, null),
+            )
         }
         set(value) {
             sp.edit().apply {
                 if (value == null) {
                     remove(KEY_UPDATE_TAG); remove(KEY_UPDATE_URL); remove(KEY_UPDATE_SIZE); remove(KEY_UPDATE_SHA256)
+                    remove(KEY_UPDATE_API_URL)
                 } else {
                     putString(KEY_UPDATE_TAG, value.tag)
                     putString(KEY_UPDATE_URL, value.url)
                     putLong(KEY_UPDATE_SIZE, value.size)
                     putString(KEY_UPDATE_SHA256, value.sha256)
+                    putString(KEY_UPDATE_API_URL, value.apiUrl)
                 }
             }.commit()
         }
@@ -86,5 +91,6 @@ class Prefs(context: Context) {
         const val KEY_UPDATE_URL = "update_url"
         const val KEY_UPDATE_SIZE = "update_size"
         const val KEY_UPDATE_SHA256 = "update_sha256"
+        const val KEY_UPDATE_API_URL = "update_api_url"
     }
 }

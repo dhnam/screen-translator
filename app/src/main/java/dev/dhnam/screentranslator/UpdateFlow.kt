@@ -80,7 +80,10 @@ object UpdateFlow {
         dispatch(UpdateEvent.CheckStarted)
         background(Runnable {
             // IOException 외의 예외(예: SecurityException)도 실패로 처리해 "확인 중…"에 머물지 않게 한다.
-            val ok = try { run(); true } catch (e: Exception) { false }
+            val ok = try { run(); true } catch (e: Exception) {
+                try { android.util.Log.w("UpdateFlow", "check failed", e) } catch (_: RuntimeException) { }
+                false
+            }
             main(Runnable { dispatch(if (ok) UpdateEvent.CheckOk else UpdateEvent.CheckError) })
         })
         return true
@@ -102,6 +105,7 @@ object UpdateFlow {
                     dispatch(UpdateEvent.Committed)
                 })
             } catch (e: Exception) {
+                try { android.util.Log.w("UpdateFlow", "install failed", e) } catch (_: RuntimeException) { }
                 val io = e as? IOException ?: IOException(e)
                 val cancelled = io.message == UpdateInstaller.CANCELLED || io.message == UpdateInstaller.NO_UPDATE
                 main(Runnable {

@@ -18,6 +18,11 @@ class ReleaseInfoTest {
     @Test fun parse_picksApkAsset() =
         assertEquals(ReleaseInfo("v0.3.0", "https://x/a.apk", 4323071, "abcd"), ReleaseInfo.parse(json("$notes,$apk")))
 
+    @Test fun parse_readsApiUrl() {
+        val withApi = """{"name":"screen-translator-v0.3.0.apk","url":"https://api.github.com/repos/o/r/releases/assets/9","browser_download_url":"https://x/a.apk","size":5}"""
+        assertEquals("https://api.github.com/repos/o/r/releases/assets/9", ReleaseInfo.parse(json(withApi))!!.apiUrl)
+    }
+
     @Test fun parse_noDigest_sha256Null() = assertNull(ReleaseInfo.parse(json(apkNoDigest))!!.sha256)
 
     @Test fun parse_noApkAsset_returnsNull() = assertNull(ReleaseInfo.parse(json(notes)))

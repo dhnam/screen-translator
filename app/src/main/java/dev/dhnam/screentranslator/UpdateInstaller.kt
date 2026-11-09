@@ -31,12 +31,8 @@ class UpdateInstaller(private val context: Context) {
         val id = installer.createSession(params)
         val session = installer.openSession(id)
         try {
-            val conn = URL(info.url).openConnection() as HttpURLConnection
+            val conn = openFirstWorking(DownloadSource.of(info))
             try {
-                conn.connectTimeout = TIMEOUT_MS
-                conn.readTimeout = TIMEOUT_MS
-                conn.setRequestProperty("User-Agent", "screen-translator")
-                if (conn.responseCode != HttpURLConnection.HTTP_OK) throw IOException("HTTP ${conn.responseCode}")
                 val hash = conn.inputStream.use { input ->
                     session.openWrite("base.apk", 0, if (info.size > 0) info.size else -1).use { out ->
                         val h = HashingCopy.copy(input, out) { done ->
@@ -63,6 +59,28 @@ class UpdateInstaller(private val context: Context) {
             session.abandon()
             throw e as? IOException ?: IOException(e)
         }
+    }
+
+    /**
+     * 주소를 차례로 열어 200을 주는 첫 연결을 돌려준다. 5xx나 연결 실패면 다음 주소로 넘어가고,
+     * 그 밖의 오류(4xx 등)나 마지막 주소의 실패는 IOException. 데이터를 쓰기 전이므로 세션은 그대로 쓴다.
+     */
+    private fun openFirstWorking(sources: List<DownloadSource>): HttpURLConnection {
+        var last: IOException? = null
+        for ((index, source) in sources.withIndex()) {
+            val conn = URL(source.url).openConnection() as HttpURLConnection
+            conn.connectTimeout = TIMEOUT_MS
+            conn.readTimeout = TIMEOUT_MS
+            conn.setRequestProperty("User-Agent", "screen-translator")
+            if (source.api) conn.setRequestProperty("Accept", "application/octet-stream")
+            val code = try { conn.responseCode } catch (e: IOException) { last = e; null }
+            if (code == HttpURLConnection.HTTP_OK) return conn
+            conn.disconnect()
+            if (code != null) last = IOException("HTTP $code")
+            val isLast = index == sources.lastIndex
+            if (isLast || !DownloadSource.shouldTryNext(source, code)) throw last ?: IOException("no source")
+        }
+        throw last ?: IOException("no source")
     }
 
     companion object {

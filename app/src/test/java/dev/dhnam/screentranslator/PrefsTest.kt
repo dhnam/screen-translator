@@ -40,7 +40,7 @@ class PrefsTest {
     @Test fun updateCheckedAt_defaultZero() = assertEquals(0L, Prefs(ctx).updateCheckedAt)
 
     @Test fun latestRelease_roundTripAndClear() {
-        val r = ReleaseInfo("v0.3.0", "https://x/a.apk", 5, null)
+        val r = ReleaseInfo("v0.3.0", "https://x/a.apk", 5, null, apiUrl = "https://api/x")
         Prefs(ctx).latestRelease = r
         assertEquals(r, Prefs(ctx).latestRelease)
         Prefs(ctx).latestRelease = null
