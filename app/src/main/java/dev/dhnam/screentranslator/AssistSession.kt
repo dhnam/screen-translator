@@ -10,7 +10,6 @@ import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.core.content.FileProvider
 import java.io.File
-import java.io.IOException
 
 /**
  * 홈버튼 길게 누르기 → 스크린샷 수신 → 캐시에 저장 → 번역 앱으로 공유 → 닫기.
@@ -40,17 +39,19 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
             return
         }
         Thread {
-            try {
-                store.purgeOlderThan(ShotStore.MAX_AGE_MS)
-                val file = store.save { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-                val uri = FileProvider.getUriForFile(context, AUTHORITY, file)
-                main.post {
-                    val resolver = TargetResolver(context.packageManager)
-                    context.startActivity(resolver.finalIntent(resolver.buildIntent(Prefs(context).target, uri)))
-                    hide()
+            val uri = ShotSharer.prepare(
+                store,
+                { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) },
+                { FileProvider.getUriForFile(context, AUTHORITY, it) },
+            )
+            main.post {
+                if (uri == null) {
+                    finishWith(R.string.save_failed)
+                    return@post
                 }
-            } catch (e: IOException) {
-                main.post { finishWith(R.string.save_failed) }
+                val resolver = TargetResolver(context.packageManager)
+                val intent = resolver.finalIntent(resolver.buildIntent(Prefs(context).target, uri))
+                if (ShotSharer.tryStart { context.startActivity(intent) }) hide() else finishWith(R.string.open_failed)
             }
         }.start()
     }

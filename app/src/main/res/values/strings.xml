@@ -3,6 +3,7 @@
     <string name="open_assist_settings">어시스턴트 설정 열기</string>
     <string name="no_screenshot">이 화면은 캡처할 수 없거나, 어시스턴트 설정의 \'화면의 텍스트 사용\'과 \'화면 이미지 사용\'이 꺼져 있어요</string>
     <string name="save_failed">캡처를 저장하지 못했어요</string>
+    <string name="open_failed">번역 앱을 열지 못했어요</string>
     <string name="status_set">기본 어시스턴트로 설정됨</string>
     <string name="status_not_set">기본 어시스턴트로 설정되지 않음</string>
     <string name="target_title">번역 앱</string>
