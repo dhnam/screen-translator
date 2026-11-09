@@ -51,6 +51,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 git tag v0.1.1 && git push origin v0.1.1
 ```
 
+- 릴리스에 첨부하는 APK 이름은 `screen-translator-<tag>.apk`여야 합니다(작업 파일이 이렇게 만듭니다). 앱의 업데이트 기능은 이 이름만 인식합니다.
 - 서명 키는 저장소 Secrets(`KEYSTORE_B64`, `KEYSTORE_PASSWORD`)에 있습니다. 로컬에서 릴리스 빌드를 하려면 `KEYSTORE_FILE`, `KEYSTORE_PASSWORD` 환경 변수를 지정합니다.
 - 릴리스 인증서 SHA-256: `56:14:E0:DB:F9:DE:BE:DC:BE:17:7E:84:D9:AB:5A:C8:53:A3:90:E7:E9:35:12:2F:57:A2:C7:DE:F2:A0:41:9C`
 - 직접 빌드한 디버그 APK는 "화면 번역 (dev)"(`dev.dhnam.screentranslator.dev`)라는 별도 앱으로 설치돼서 릴리스 앱과 함께 쓸 수 있습니다. 디지털 어시스턴트는 한 번에 하나만 지정할 수 있습니다.

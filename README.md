@@ -51,6 +51,7 @@ Pushing a `v*` tag makes GitHub Actions (`.github/workflows/release.yml`) run th
 git tag v0.1.1 && git push origin v0.1.1
 ```
 
+- The APK attached to a release must be named `screen-translator-<tag>.apk` (the workflow does this). The in-app updater only recognises that name.
 - The signing key lives in the repository secrets (`KEYSTORE_B64`, `KEYSTORE_PASSWORD`). For a local release build, set the `KEYSTORE_FILE` and `KEYSTORE_PASSWORD` environment variables.
 - Release certificate SHA-256: `56:14:E0:DB:F9:DE:BE:DC:BE:17:7E:84:D9:AB:5A:C8:53:A3:90:E7:E9:35:12:2F:57:A2:C7:DE:F2:A0:41:9C`
 - Debug builds install as a separate app, "Screen Translator (dev)" (`dev.dhnam.screentranslator.dev`), so they can sit next to the release app. Only one app can be the digital assistant at a time.

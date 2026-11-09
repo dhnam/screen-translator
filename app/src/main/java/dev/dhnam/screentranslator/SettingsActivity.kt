@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.net.Uri
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -206,7 +207,7 @@ class SettingsActivity : Activity() {
                 isFocusable = false
             })
             row.addView(ImageView(this).apply {
-                setImageDrawable(resolver.icon(c))
+                setImageDrawable(cachedIcon(c))
             }, LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginEnd = dp(12) })
             row.addView(TextView(this).apply {
                 text = name
@@ -224,12 +225,24 @@ class SettingsActivity : Activity() {
     }
 
     /** 이미지를 받을 수 있는 앱 중 목록에 없는 것을 스크롤 선택 창으로 보여 준다. */
+    /** 아이콘 캐시. 선택 창이 스크롤될 때마다 다시 읽지 않도록 화면이 살아 있는 동안 둔다. */
+    private val iconCache = HashMap<ComponentName, Drawable?>()
+
+    private fun cachedIcon(c: ComponentName): Drawable? = iconCache.getOrPut(c) { resolver.icon(c) }
+
+    /** 이미지를 받을 수 있는 앱 중 목록에 없는 것을 스크롤 선택 창으로 보여 준다. 목록과 이름은 백그라운드에서 읽는다. */
     private fun showAddDialog() {
         val existing = prefs.targetList.items.toSet()
-        val candidates = resolver.shareTargets()
-            .filterNot { it.flattenToString() in existing }
-            .map { it to resolver.label(it) }
-            .sortedBy { it.second.lowercase() }
+        Thread {
+            val candidates = resolver.shareTargets()
+                .filterNot { it.flattenToString() in existing }
+                .map { it to resolver.label(it) }
+                .sortedBy { it.second.lowercase() }
+            main.post { if (!isFinishing && !isDestroyed) presentAddDialog(candidates) }
+        }.start()
+    }
+
+    private fun presentAddDialog(candidates: List<Pair<ComponentName, String>>) {
         if (candidates.isEmpty()) {
             Toast.makeText(this, R.string.no_more_targets, Toast.LENGTH_SHORT).show()
             return
@@ -237,7 +250,7 @@ class SettingsActivity : Activity() {
         val adapter = object : ArrayAdapter<Pair<ComponentName, String>>(this, 0, candidates) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val (c, label) = getItem(position)!!
-                val icon = resolver.icon(c)?.mutate()?.apply { setBounds(0, 0, dp(32), dp(32)) }
+                val icon = cachedIcon(c)?.constantState?.newDrawable()?.mutate()?.apply { setBounds(0, 0, dp(32), dp(32)) }
                 return ((convertView as? TextView) ?: TextView(context)).apply {
                     text = label
                     textSize = 16f

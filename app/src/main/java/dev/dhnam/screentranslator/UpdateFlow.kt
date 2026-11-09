@@ -2,6 +2,7 @@ package dev.dhnam.screentranslator
 
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.VisibleForTesting
 import java.io.IOException
 
 /**
@@ -58,7 +59,8 @@ object UpdateFlow {
         if (state.next(UpdateEvent.CheckStarted) == state) return false
         dispatch(UpdateEvent.CheckStarted)
         background(Runnable {
-            val ok = try { run(); true } catch (e: IOException) { false }
+            // IOException 외의 예외(예: SecurityException)도 실패로 처리해 "확인 중…"에 머물지 않게 한다.
+            val ok = try { run(); true } catch (e: Exception) { false }
             main(Runnable { dispatch(if (ok) UpdateEvent.CheckOk else UpdateEvent.CheckError) })
         })
         return true
@@ -79,17 +81,19 @@ object UpdateFlow {
                     pendingSessionId = sessionId
                     dispatch(UpdateEvent.Committed)
                 })
-            } catch (e: IOException) {
-                val cancelled = e.message == UpdateInstaller.CANCELLED || e.message == UpdateInstaller.NO_UPDATE
+            } catch (e: Exception) {
+                val io = e as? IOException ?: IOException(e)
+                val cancelled = io.message == UpdateInstaller.CANCELLED || io.message == UpdateInstaller.NO_UPDATE
                 main(Runnable {
                     dispatch(if (cancelled) UpdateEvent.Cancelled else UpdateEvent.DownloadError)
-                    if (!cancelled) onError(e)
+                    if (!cancelled) onError(io)
                 })
             }
         })
         return true
     }
 
+    @VisibleForTesting
     internal fun resetForTest() {
         state = UpdateUi.Idle
         cancelRequested = false

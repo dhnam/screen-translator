@@ -91,6 +91,18 @@ class UpdateFlowTest {
         assertEquals(null, error)
     }
 
+    @Test fun startCheck_runtimeException_isCheckFailed() {
+        UpdateFlow.startCheck { throw SecurityException("denied") }
+        assertEquals(UpdateUi.CheckFailed, UpdateFlow.state)
+    }
+
+    @Test fun startInstall_runtimeException_isIdleAndReportsError() {
+        var error: IOException? = null
+        UpdateFlow.startInstall({ throw IllegalStateException("boom") }) { error = it }
+        assertEquals(UpdateUi.Idle, UpdateFlow.state)
+        assertEquals("boom", error?.cause?.message)
+    }
+
     @Test fun startInstall_failure_reportsError() {
         var error: IOException? = null
         UpdateFlow.startInstall({ throw IOException("HTTP 500") }) { error = it }
