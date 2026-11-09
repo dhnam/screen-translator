@@ -1,31 +1,46 @@
 package dev.dhnam.screentranslator
 
 import android.content.Context
-import androidx.annotation.StringRes
 
-/** 캡처를 넘길 번역 앱. */
-enum class Target(val pkg: String, @StringRes val openingMessage: Int) {
-    PAPAGO("com.naver.labs.translator", R.string.opening_papago),
-    GOOGLE("com.google.android.googlequicksearchbox", R.string.opening_google),
-}
-
-/** 사용자 설정 저장. 저장된 값이 없거나 알 수 없으면 파파고. */
+/** 사용자 설정 저장. */
 class Prefs(context: Context) {
     private val sp = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
-    var target: Target
-        get() = sp.getString(KEY_TARGET, null)
-            ?.let { name -> Target.entries.firstOrNull { it.name == name } }
-            ?: Target.PAPAGO
-        set(value) { sp.edit().putString(KEY_TARGET, value.name).apply() }
+    /**
+     * 번역 앱 목록과 기본 앱.
+     * 저장된 목록이 없으면 v0.1.0의 `target` 값을 한 번 이어받고(그 키는 지움), 그것도 없으면 처음 설치 기본값.
+     */
+    var targetList: TargetList
+        get() {
+            if (sp.contains(KEY_TARGETS)) {
+                return TargetList.decode(sp.getString(KEY_TARGETS, null), sp.getString(KEY_DEFAULT, null))
+            }
+            if (sp.contains(KEY_OLD_TARGET)) {
+                val migrated = TargetList.migrate(sp.getString(KEY_OLD_TARGET, null))
+                write(migrated, removeOld = true)
+                return migrated
+            }
+            return TargetList.INITIAL
+        }
+        set(value) = write(value, removeOld = false)
 
     /** 번역 앱을 열 때 "여는 중…" 토스트를 띄울지. 기본값은 꺼짐. */
     var showOpeningToast: Boolean
         get() = sp.getBoolean(KEY_OPENING_TOAST, false)
         set(value) { sp.edit().putBoolean(KEY_OPENING_TOAST, value).apply() }
 
+    private fun write(list: TargetList, removeOld: Boolean) {
+        sp.edit().apply {
+            putString(KEY_TARGETS, list.encodeItems())
+            putString(KEY_DEFAULT, list.default)
+            if (removeOld) remove(KEY_OLD_TARGET)
+        }.commit()
+    }
+
     private companion object {
-        const val KEY_TARGET = "target"
+        const val KEY_TARGETS = "targets"
+        const val KEY_DEFAULT = "default_target"
+        const val KEY_OLD_TARGET = "target"
         const val KEY_OPENING_TOAST = "opening_toast"
     }
 }

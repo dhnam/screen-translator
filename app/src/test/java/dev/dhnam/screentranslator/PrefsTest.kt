@@ -2,7 +2,10 @@ package dev.dhnam.screentranslator
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import dev.dhnam.screentranslator.TargetList.Companion.INITIAL
+import dev.dhnam.screentranslator.TargetList.Companion.LENS
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -12,12 +15,26 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class PrefsTest {
     private val ctx: Context = ApplicationProvider.getApplicationContext()
+    private val sp get() = ctx.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
-    @Test fun prefs_default_isPapago() = assertEquals(Target.PAPAGO, Prefs(ctx).target)
+    @Test fun prefs_freshInstall_isInitial() = assertEquals(INITIAL, Prefs(ctx).targetList)
 
     @Test fun prefs_roundTrip() {
-        Prefs(ctx).target = Target.GOOGLE
-        assertEquals(Target.GOOGLE, Prefs(ctx).target)
+        val l = INITIAL.add("a/a.B").setDefault("a/a.B")
+        Prefs(ctx).targetList = l
+        assertEquals(l, Prefs(ctx).targetList)
+    }
+
+    @Test fun prefs_emptyListPersists() {
+        Prefs(ctx).targetList = TargetList(emptyList(), null)
+        assertEquals(TargetList(emptyList(), null), Prefs(ctx).targetList)
+    }
+
+    @Test fun prefs_migratesOldGoogle_andRemovesOldKey() {
+        sp.edit().putString("target", "GOOGLE").commit()
+        assertEquals(LENS, Prefs(ctx).targetList.default)
+        assertFalse(sp.contains("target"))
+        assertEquals(LENS, Prefs(ctx).targetList.default)
     }
 
     @Test fun openingToast_default_isOff() = assertEquals(false, Prefs(ctx).showOpeningToast)
@@ -25,15 +42,5 @@ class PrefsTest {
     @Test fun openingToast_roundTrip() {
         Prefs(ctx).showOpeningToast = true
         assertEquals(true, Prefs(ctx).showOpeningToast)
-    }
-
-    @Test fun openingMessage_matchesTarget() {
-        assertEquals(R.string.opening_papago, Target.PAPAGO.openingMessage)
-        assertEquals(R.string.opening_google, Target.GOOGLE.openingMessage)
-    }
-
-    @Test fun prefs_unknownStoredValue_fallsBackToPapago() {
-        ctx.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putString("target", "BING").commit()
-        assertEquals(Target.PAPAGO, Prefs(ctx).target)
     }
 }

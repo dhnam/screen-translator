@@ -1,5 +1,6 @@
 package dev.dhnam.screentranslator
 
+import android.content.ComponentName
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
@@ -50,12 +51,13 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
                     return@post
                 }
                 val prefs = Prefs(context)
-                val target = prefs.target
-                val resolver = TargetResolver(context.packageManager)
+                val target = prefs.targetList.default?.let(ComponentName::unflattenFromString)
+                val resolver = TargetResolver(context.packageManager, context.packageName)
                 val intent = resolver.finalIntent(resolver.buildIntent(target, uri))
                 if (ShotSharer.tryStart { context.startActivity(intent) }) {
-                    if (prefs.showOpeningToast) {
-                        Toast.makeText(context, target.openingMessage, Toast.LENGTH_SHORT).show()
+                    if (prefs.showOpeningToast && target != null && intent.component == target) {
+                        val name = resolver.label(target)
+                        Toast.makeText(context, context.getString(R.string.opening_format, name), Toast.LENGTH_SHORT).show()
                     }
                     hide()
                 } else {

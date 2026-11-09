@@ -39,24 +39,12 @@
             android:textSize="17sp"
             android:textStyle="bold" />
 
-        <RadioGroup
-            android:id="@+id/target"
+        <LinearLayout
+            android:id="@+id/targets"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp">
-
-            <RadioButton
-                android:id="@+id/target_papago"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/target_papago" />
-
-            <RadioButton
-                android:id="@+id/target_google"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/target_google" />
-        </RadioGroup>
+            android:layout_marginTop="4dp"
+            android:orientation="vertical" />
 
         <CheckBox
             android:id="@+id/opening_toast"

@@ -7,11 +7,8 @@
     <string name="status_set">기본 어시스턴트로 설정됨</string>
     <string name="status_not_set">기본 어시스턴트로 설정되지 않음</string>
     <string name="target_title">번역 앱</string>
-    <string name="target_papago">파파고</string>
-    <string name="target_google">구글 렌즈</string>
+    <string name="opening_format">%1$s 여는 중…</string>
     <string name="opening_toast_option">번역 앱을 열 때 \'여는 중…\' 안내 표시</string>
-    <string name="opening_papago">파파고 여는 중…</string>
-    <string name="opening_google">구글 렌즈 여는 중…</string>
     <string name="notice_screen_settings">어시스턴트 설정에서 \'화면의 텍스트 사용\'과 \'화면 이미지 사용\'을 둘 다 켜주세요.</string>
     <string name="notice_voice_input">이 앱을 어시스턴트로 쓰는 동안, 시스템 음성 인식을 쓰는 일부 앱에서는 음성 입력이 안 될 수 있어요.</string>
 </resources>
