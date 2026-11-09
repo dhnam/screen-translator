@@ -31,7 +31,6 @@
     <string name="update_permission_title">앱 설치 허용</string>
     <string name="update_permission_message">업데이트를 설치하려면 이 앱이 앱을 설치할 수 있도록 허용해야 해요.</string>
     <string name="update_permission_open">설정 열기</string>
-    <string name="update_downloading_short">받는 중…</string>
     <string name="theme_title">테마</string>
     <string name="theme_system">시스템 설정 따르기</string>
     <string name="theme_light">라이트</string>

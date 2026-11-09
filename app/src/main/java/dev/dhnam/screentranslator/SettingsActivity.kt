@@ -31,7 +31,6 @@ import android.widget.Toast
 import android.widget.TextView
 import java.io.File
 import java.io.IOException
-import java.lang.ref.WeakReference
 
 /** 앱 아이콘을 누르면 열리는 설정 화면: 번역 앱 선택, 어시스턴트 상태, 안내. */
 class SettingsActivity : Activity() {
@@ -77,69 +76,48 @@ class SettingsActivity : Activity() {
         status.setText(if (held) R.string.status_set else R.string.status_not_set)
         renderTargets()
         if (BuildConfig.UPDATE_ENABLED) {
-            current = WeakReference(this)
-            if (busy) showBusy() else renderUpdate()
-            if (!busy && Version.shouldAutoCheck(System.currentTimeMillis(), prefs.updateCheckedAt)) startCheck()
+            UpdateFlow.observe { renderUpdate(it) }
+            if (Version.shouldAutoCheck(System.currentTimeMillis(), prefs.updateCheckedAt)) startCheck()
         } else {
             updateStatus.setText(R.string.update_disabled_dev)
             updateAction.visibility = View.GONE
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (BuildConfig.UPDATE_ENABLED) UpdateFlow.stopObserving()
+    }
+
     override fun onStop() {
         super.onStop()
         // 화면을 벗어나면(회전 포함) 받던 업데이트를 취소한다. 설치 확인 창이 뜰 수 없는 상태에서 세션이 남지 않게 한다.
-        if (downloading) cancelDownload = true
+        if (UpdateFlow.state is UpdateUi.Downloading) UpdateFlow.cancelRequested = true
     }
 
     // --- 업데이트 ---
-    // 진행 상태는 Activity가 아니라 프로세스에 둔다. 회전으로 새 Activity가 생겨도 중복 실행되지 않게 한다.
+    // 상태는 UpdateFlow(프로세스에 하나)에 있고, 화면은 UpdateView.of(상태)만 보고 그린다.
 
-    /** 저장된 마지막 결과로 업데이트 영역을 그린다. */
-    private fun renderUpdate() {
-        val checker = UpdateChecker(this)
-        val latest = prefs.latestRelease?.takeIf { Version.isNewer(it.tag, checker.currentVersion()) }
-        updateAction.isEnabled = true
-        if (latest != null) {
-            updateStatus.text = getString(R.string.update_available, latest.tag)
-            updateAction.setText(R.string.update_install)
-            updateAction.setOnClickListener { startInstall(latest) }
-        } else {
-            updateStatus.text = getString(R.string.update_latest, checker.currentVersion())
-            updateAction.setText(R.string.update_check_now)
-            updateAction.setOnClickListener { startCheck() }
+    private fun renderUpdate(state: UpdateUi) {
+        val current = UpdateChecker(this).currentVersion()
+        val latest = prefs.latestRelease
+        val view = UpdateView.of(state, latest, current)
+        updateStatus.text = getString(view.text, *view.args.toTypedArray())
+        updateAction.isEnabled = view.enabled
+        when (view.button) {
+            UpdateButton.CHECK -> { updateAction.setText(R.string.update_check_now); updateAction.setOnClickListener { startCheck() } }
+            UpdateButton.RETRY -> { updateAction.setText(R.string.update_retry); updateAction.setOnClickListener { startCheck() } }
+            UpdateButton.INSTALL -> { updateAction.setText(R.string.update_install); updateAction.setOnClickListener { latest?.let(::startInstall) } }
+            UpdateButton.NONE -> updateAction.setOnClickListener(null)
         }
     }
 
-    private fun showBusy() {
-        updateStatus.setText(if (downloading) R.string.update_downloading_short else R.string.update_checking)
-        updateAction.isEnabled = false
-    }
-
-    private fun showCheckFailed() {
-        updateStatus.setText(R.string.update_failed)
-        updateAction.isEnabled = true
-        updateAction.setText(R.string.update_retry)
-        updateAction.setOnClickListener { startCheck() }
-    }
-
     private fun startCheck() {
-        if (busy) return
-        busy = true
-        showBusy()
         val checker = UpdateChecker(applicationContext)
-        Thread {
-            val ok = try { checker.check(); true } catch (e: IOException) { false }
-            main.post {
-                busy = false
-                val a = current?.get()?.takeIf { !it.isDestroyed } ?: return@post
-                if (ok) a.renderUpdate() else a.showCheckFailed()
-            }
-        }.start()
+        UpdateFlow.startCheck { checker.check() }
     }
 
     private fun startInstall(info: ReleaseInfo) {
-        if (busy) return
         if (!packageManager.canRequestPackageInstalls()) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.update_permission_title)
@@ -151,48 +129,19 @@ class SettingsActivity : Activity() {
                 .show()
             return
         }
-        busy = true
-        downloading = true
-        cancelDownload = false
-        updateAction.isEnabled = false
-        updateStatus.text = getString(R.string.update_downloading, 0)
         val app = applicationContext
         val installer = UpdateInstaller(app)
-        Thread {
-            val error: Int? = try {
-                var lastPct = -1
-                installer.install(info, isCancelled = { cancelDownload }) { pct ->
-                    if (pct != lastPct) {
-                        lastPct = pct
-                        main.post {
-                            current?.get()?.takeIf { !it.isDestroyed }?.updateStatus?.text =
-                                app.getString(R.string.update_downloading, pct)
-                        }
-                    }
-                }
-                null
-            } catch (e: IOException) {
-                when (e.message) {
-                    UpdateInstaller.CANCELLED -> null
-                    UpdateInstaller.DIGEST_MISMATCH -> R.string.update_corrupt
-                    else -> R.string.update_failed
-                }
+        UpdateFlow.startInstall({ progress ->
+            var lastPct = -1
+            installer.install(info, isCancelled = { UpdateFlow.cancelRequested }) { pct ->
+                if (pct != lastPct) { lastPct = pct; progress(pct) }
             }
-            main.post {
-                busy = false
-                downloading = false
-                if (error != null) Toast.makeText(app, error, Toast.LENGTH_LONG).show()
-                current?.get()?.takeIf { !it.isDestroyed }?.renderUpdate()
-            }
-        }.start()
+        }) { e ->
+            val msg = if (e.message == UpdateInstaller.DIGEST_MISMATCH) R.string.update_corrupt else R.string.update_download_failed
+            Toast.makeText(app, msg, Toast.LENGTH_LONG).show()
+        }
     }
 
-    private companion object {
-        @Volatile var busy = false
-        @Volatile var downloading = false
-        @Volatile var cancelDownload = false
-        var current: WeakReference<SettingsActivity>? = null
-    }
 
 
     /** 테마 선택. 앱별 다크 모드는 Android 12(API 31)부터라 그 아래에서는 숨기고 시스템을 따른다. */
