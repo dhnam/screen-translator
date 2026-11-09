@@ -140,3 +140,56 @@ screen-translator/
 - "화면 이미지 사용"이 꺼져 있으면 `onHandleScreenshot`에 `null`이 오는 게 아니라 아예 호출되지 않는다. 그래서 2초 타이머가 안내를 맡는다.
 - `FileProvider`는 AndroidX(`androidx.core`)에만 있어서 이 의존성 하나는 추가했다.
 - 파파고는 EXIF를 읽을 때 `?requireOriginal=1`을 붙인 URI로 접근하는데, 이 접근은 권한 거부된다. 번역에는 영향이 없다.
+
+## 11. 번역 앱 목록 (v0.2.0 추가, 2026-11-09)
+
+### 목적
+
+번역 앱을 파파고와 구글 렌즈 두 개로 고정하지 않고, 이미지를 받을 수 있는 아무 앱이나 목록에 추가하거나 제거할 수 있게 한다. 홈버튼을 길게 누르면 지금처럼 **기본 앱 하나로 바로** 보낸다.
+
+### 화면
+
+- 설정 화면의 "번역 앱" 영역은 목록이다. 한 줄은 `[라디오] [아이콘] 이름 [✕]`이다.
+  - 줄을 누르면 그 앱이 기본 앱이 된다.
+  - ✕를 누르면 목록에서 제거한다.
+- 목록 아래에 "+ 앱 추가" 버튼이 있다. 누르면 이미지를 받을 수 있는 화면 목록이 스크롤되는 선택 창(`AlertDialog`)으로 뜬다. 각 항목은 아이콘과 이름이다.
+  - 이미 목록에 있는 화면과 이 앱 자신은 선택 창에서 빠진다.
+  - 한 패키지에 공유 화면이 여러 개면 화면마다 따로 나온다. 이름은 화면 이름(라벨)을 쓰고, 화면 이름이 앱 이름과 다르면 "앱 이름 · 화면 이름"으로 표시한다.
+- 설치되지 않았거나 비활성화된 화면은 회색으로 "(설치 안 됨)"을 붙여 표시하고, 기본 앱으로 고를 수 없다. 제거는 할 수 있다.
+- "여는 중…" 토스트 문구는 "%s 여는 중…"이고, %s에는 기본 앱의 표시 이름이 들어간다.
+
+### 규칙
+
+- 번역 앱 하나는 `ComponentName`(패키지 + Activity)으로 식별한다.
+- 같은 화면은 두 번 추가되지 않는다. 추가한 화면은 목록 맨 끝에 붙는다.
+- 목록이 비어 있지 않으면 기본 앱은 항상 목록 안에 있다.
+  - 기본 앱을 제거하면 남은 목록의 첫 번째가 기본 앱이 된다.
+  - 기본 앱이 없는 상태에서 앱을 추가하면 그 앱이 기본 앱이 된다.
+- 목록이 비었거나 기본 앱이 설치돼 있지 않으면, 홈버튼을 눌렀을 때 일반 공유 메뉴를 띄운다(기존 `finalIntent` 동작).
+- **처음 설치**: 목록은 [파파고 `com.naver.labs.translator/.ui.main.DeepLinkActivity`, Google 렌즈 `com.google.android.googlequicksearchbox/com.google.android.apps.search.lens.LensShareEntryPointActivity`]이고, 기본 앱은 파파고다.
+- **v0.1.0에서 업데이트**: 예전 키 `target`이 있으면 같은 기본 목록을 만들고, 값이 `GOOGLE`이면 Google 렌즈를, 그 밖의 값이면 파파고를 기본 앱으로 정한다. 그다음 예전 키는 지운다.
+
+### 저장
+
+- `SharedPreferences` 파일 `settings`를 쓴다.
+  - `targets`: `ComponentName.flattenToString()` 값들을 줄바꿈으로 이어 붙인 문자열(순서 유지)
+  - `default_target`: 기본 앱의 `flattenToString()` 값
+- 예전 키 `target`은 위의 이어받기 규칙에 따라 한 번만 읽는다.
+
+### 구성 요소 변경
+
+| 단위 | 변경 |
+|---|---|
+| `Target` enum | 제거 |
+| `TargetList` (새로 추가) | 목록과 기본 앱의 순수 로직: `add`, `remove`, `setDefault`, 기본값, 예전 설정 이어받기. 문자열 목록만 다뤄서 JVM에서 테스트할 수 있다. |
+| `Prefs` | `targetList` 읽기/쓰기(예전 설정 이어받기 포함). `showOpeningToast`는 그대로 |
+| `TargetResolver` | `shareTargets()`: 이미지를 받는 화면 목록(이 앱 제외). `isAvailable(component)`. `label(component)`. `buildIntent(component, uri)`: `setComponent`. `finalIntent` 그대로. `pickLens` 제거 |
+| `SettingsActivity` | 목록 UI, 추가 선택 창 |
+| `AssistSession` | 기본 앱 `ComponentName`으로 공유. 목록이 비었으면 공유 메뉴 |
+
+### 테스트
+
+- `TargetList` (JVM): 처음 설치 기본값, 추가, 중복 추가 무시, 제거, 기본 앱을 제거하면 첫 번째가 기본이 됨, 모두 제거하면 빈 목록과 기본 앱 없음, 빈 목록에 추가하면 기본 앱이 됨, 목록에 없는 앱은 기본으로 지정되지 않음, 예전 `GOOGLE`/`PAPAGO`/알 수 없는 값 이어받기
+- `Prefs` (Robolectric): 저장 후 다시 읽기, 예전 키를 이어받은 뒤 그 키가 지워지는지
+- `TargetResolver` (Robolectric): `shareTargets`에서 이 앱이 빠지는지, `buildIntent`가 컴포넌트를 정확히 지정하는지, 설치 안 된 컴포넌트를 `isAvailable`이 false로 판별하는지, `finalIntent`가 그대로 동작하는지
+- 기기(dev 앱): DeepL을 추가해 기본 앱으로 지정하고 보내기, 제거, 기본 앱 제거 시 다음 앱으로 넘어가는지, 목록을 다 비웠을 때 공유 메뉴가 뜨는지
