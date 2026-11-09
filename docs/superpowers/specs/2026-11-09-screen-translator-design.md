@@ -1,7 +1,7 @@
 # Screen Translator — 설계서
 
 - 날짜: 2026-11-09
-- 상태: 검토 대기
+- 상태: 구현됨 (2026-11-09, 기기 확인 완료)
 
 ## 1. 목적
 
@@ -133,3 +133,10 @@ screen-translator/
 ```
 
 - 패키지 이름: `dev.dhnam.screentranslator`
+
+## 10. 구현 중 바뀐 점
+
+- 안내는 토스트로 띄운다. One UI는 알림 권한이 없고 화면 앞에 있지 않은 앱의 토스트를 막는다. 그래서 `POST_NOTIFICATIONS`를 선언하고 `SettingsActivity`에서 요청한다. 세션 창 안에 안내를 띄우는 방식도 시험했지만, 떠 있는 동안 화면 입력을 막아서 쓰지 않는다.
+- "화면 이미지 사용"이 꺼져 있으면 `onHandleScreenshot`에 `null`이 오는 게 아니라 아예 호출되지 않는다. 그래서 2초 타이머가 안내를 맡는다.
+- `FileProvider`는 AndroidX(`androidx.core`)에만 있어서 이 의존성 하나는 추가했다.
+- 파파고는 EXIF를 읽을 때 `?requireOriginal=1`을 붙인 URI로 접근하는데, 이 접근은 권한 거부된다. 번역에는 영향이 없다.
