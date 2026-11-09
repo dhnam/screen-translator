@@ -94,11 +94,12 @@
 
 ## 7. 위험 요소와 먼저 확인할 것
 
-1. **One UI에서 세션이 외부 앱을 띄울 수 있는지.** 막히면 투명 Activity를 거쳐 실행한다.
+1. ~~One UI에서 세션이 외부 앱을 띄울 수 있는지.~~ **확인됨 (2026-11-09, SM-N981N, Android 13).** 디지털 어시스턴트 앱 목록에 표시되고, 세션에서 `context.startActivity` + `setPackage`로 파파고 이미지 번역이 열렸다. 투명 Activity는 필요 없다.
 2. ~~파파고가 `ACTION_SEND` 이미지를 받아 이미지 번역 화면으로 여는지.~~ **확인됨 (2026-11-09).** 사용자가 기기의 공유 메뉴로 이미지를 파파고에 보냈더니 바로 이미지 번역 화면이 열렸다. 남은 확인 사항은 공유 메뉴를 거치지 않고 `setPackage`로 직접 보낼 때도 같은 화면이 열리는지뿐이다.
 3. **구글 앱에 이미지를 공유하면 렌즈로 열리는지.** 그리고 렌즈 공유 Activity의 실제 이름. `adb shell cmd package query-activities -a android.intent.action.SEND -t image/png`로 확인한다.
 4. **"화면의 텍스트 사용"과 "화면 이미지 사용" 설정 위치.** 기기에서 확인한 뒤 설정 화면 안내 문구에 반영한다.
-5. **음성 인식 껍데기로 생기는 부작용의 실제 범위.**
+   - **확인 결과**: 구글 앱에서 `ACTION_SEND image/png`를 받는 Activity는 2개다. `com.google.android.apps.search.lens.LensShareEntryPointActivity`와 `...saves.savefeature.sharereceiver.SavesShareReceiverWithImageType`이다. 그래서 렌즈 컴포넌트를 직접 지정해야 한다.
+5. ~~음성 인식 껍데기로 생기는 부작용의 실제 범위.~~ **확인됨.** 이 앱을 어시스턴트로 지정한 뒤에도 `voice_recognition_service`는 Google TTS 인식기 그대로였다. 이 기기에서는 부작용이 없다.
 
 검토 메모: 위 1~5 중 일부 판단은 AOSP 소스 지식을 근거로 했고, 문서를 직접 확인하지는 않았다. 첫 시험 앱에서 실제 동작으로 확정한다.
 
