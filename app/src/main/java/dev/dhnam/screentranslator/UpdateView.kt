@@ -17,7 +17,9 @@ data class UpdateView(@StringRes val text: Int, val args: List<Any>, val button:
                 }
             UpdateUi.Checking -> UpdateView(R.string.update_checking, emptyList(), UpdateButton.NONE, false)
             UpdateUi.CheckFailed -> UpdateView(R.string.update_failed, emptyList(), UpdateButton.RETRY, true)
-            is UpdateUi.Downloading -> UpdateView(R.string.update_downloading, listOf(state.pct), UpdateButton.NONE, false)
+            is UpdateUi.Downloading ->
+                if (state.pct == null) UpdateView(R.string.update_preparing, emptyList(), UpdateButton.NONE, false)
+                else UpdateView(R.string.update_downloading, listOf(state.pct), UpdateButton.NONE, false)
             UpdateUi.AwaitingInstall ->
                 if (canReopen) UpdateView(R.string.update_awaiting_install, emptyList(), UpdateButton.REOPEN, true)
                 else UpdateView(R.string.update_awaiting_install, emptyList(), UpdateButton.NONE, false)

@@ -39,7 +39,7 @@ class UpdateFlowTest {
         var ran = false
         assertFalse(UpdateFlow.startCheck { ran = true })
         assertFalse(ran)
-        assertEquals(UpdateUi.Downloading(0), UpdateFlow.state)
+        assertEquals(UpdateUi.Downloading(null), UpdateFlow.state)
     }
 
     @Test fun noObserver_stateStillAdvances() {
@@ -53,7 +53,7 @@ class UpdateFlowTest {
     @Test fun startInstall_success_awaitingInstall() {
         UpdateFlow.observe { seen += it }
         UpdateFlow.startInstall({ progress -> progress(50); 1 }) { }
-        assertEquals(listOf(UpdateUi.Idle, UpdateUi.Downloading(0), UpdateUi.Downloading(50), UpdateUi.AwaitingInstall), seen)
+        assertEquals(listOf(UpdateUi.Idle, UpdateUi.Downloading(null), UpdateUi.Downloading(50), UpdateUi.AwaitingInstall), seen)
     }
 
     @Test fun screenReturns_sessionGone_isIdle() {

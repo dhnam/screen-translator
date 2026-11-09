@@ -5,14 +5,15 @@ sealed interface UpdateUi {
     object Idle : UpdateUi
     object Checking : UpdateUi
     object CheckFailed : UpdateUi
-    data class Downloading(val pct: Int) : UpdateUi
+    /** `pct`가 null이면 아직 데이터가 오기 전(다운로드 준비 중). */
+    data class Downloading(val pct: Int?) : UpdateUi
     object AwaitingInstall : UpdateUi
 
     /** 허용된 전이만 일어난다. 그 밖의 사건은 상태를 바꾸지 않는다. (설계서 13절 B 표) */
     fun next(e: UpdateEvent): UpdateUi = when (this) {
         Idle, CheckFailed -> when (e) {
             UpdateEvent.CheckStarted -> Checking
-            UpdateEvent.DownloadStarted -> Downloading(0)
+            UpdateEvent.DownloadStarted -> Downloading(null)
             else -> this
         }
         Checking -> when (e) {

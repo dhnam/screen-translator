@@ -31,6 +31,11 @@ class UpdateViewTest {
         UpdateView.of(UpdateUi.AwaitingInstall, newer, "0.3.0", canReopen = true),
     )
 
+    @Test fun downloading_beforeFirstData_showsPreparing() = assertEquals(
+        UpdateView(R.string.update_preparing, emptyList(), UpdateButton.NONE, false),
+        UpdateView.of(UpdateUi.Downloading(null), newer, "0.3.0"),
+    )
+
     @Test fun checkFailed_showsRetry() = assertEquals(
         UpdateView(R.string.update_failed, emptyList(), UpdateButton.RETRY, true),
         UpdateView.of(UpdateUi.CheckFailed, null, "0.3.0"),

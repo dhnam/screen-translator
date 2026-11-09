@@ -39,4 +39,5 @@
     <string name="update_download_failed">업데이트를 받지 못했어요</string>
     <string name="crop_option">캡처에서 상태바와 내비게이션 바 빼기</string>
     <string name="update_reopen_confirm">설치 확인 다시 열기</string>
+    <string name="update_preparing">다운로드 준비 중…</string>
 </resources>

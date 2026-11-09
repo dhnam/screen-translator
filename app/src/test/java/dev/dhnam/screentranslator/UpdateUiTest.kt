@@ -22,10 +22,11 @@ class UpdateUiTest {
 
     @Test fun download_flow() {
         val d = UpdateUi.Idle.next(DownloadStarted)
-        assertEquals(UpdateUi.Downloading(0), d)
+        assertEquals(UpdateUi.Downloading(null), d)
+        assertEquals(UpdateUi.Downloading(0), d.next(Progress(0)))
         assertEquals(UpdateUi.Downloading(40), d.next(Progress(40)))
         assertEquals(UpdateUi.AwaitingInstall, UpdateUi.Downloading(40).next(Committed))
-        assertEquals(UpdateUi.Downloading(0), UpdateUi.CheckFailed.next(DownloadStarted))
+        assertEquals(UpdateUi.Downloading(null), UpdateUi.CheckFailed.next(DownloadStarted))
     }
 
     @Test fun awaitingInstall_installFinished_isIdle() =
