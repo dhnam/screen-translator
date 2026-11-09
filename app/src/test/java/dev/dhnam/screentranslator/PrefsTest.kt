@@ -66,6 +66,12 @@ class PrefsTest {
         assertEquals(android.app.UiModeManager.MODE_NIGHT_YES, ThemeMode.DARK.nightMode)
     }
 
+    @Test fun cropSystemBars_defaultOff_andRoundTrip() {
+        assertEquals(false, Prefs(ctx).cropSystemBars)
+        Prefs(ctx).cropSystemBars = true
+        assertEquals(true, Prefs(ctx).cropSystemBars)
+    }
+
     @Test fun openingToast_default_isOff() = assertEquals(false, Prefs(ctx).showOpeningToast)
 
     @Test fun openingToast_roundTrip() {

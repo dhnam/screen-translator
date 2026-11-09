@@ -29,6 +29,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_OPENING_TOAST, false)
         set(value) { sp.edit().putBoolean(KEY_OPENING_TOAST, value).apply() }
 
+    /** 캡처에서 상태바와 내비게이션 바를 잘라낼지. 기본값은 꺼짐. */
+    var cropSystemBars: Boolean
+        get() = sp.getBoolean(KEY_CROP_SYSTEM_BARS, false)
+        set(value) { sp.edit().putBoolean(KEY_CROP_SYSTEM_BARS, value).apply() }
+
     /** 설정 화면 테마. 저장된 값이 없거나 알 수 없으면 시스템을 따른다. */
     var themeMode: ThemeMode
         get() = sp.getString(KEY_THEME_MODE, null)
@@ -75,6 +80,7 @@ class Prefs(context: Context) {
         const val KEY_OLD_TARGET = "target"
         const val KEY_OPENING_TOAST = "opening_toast"
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_CROP_SYSTEM_BARS = "crop_system_bars"
         const val KEY_UPDATE_CHECKED_AT = "update_checked_at"
         const val KEY_UPDATE_TAG = "update_tag"
         const val KEY_UPDATE_URL = "update_url"
