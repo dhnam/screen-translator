@@ -46,6 +46,13 @@
             android:layout_marginTop="4dp"
             android:orientation="vertical" />
 
+        <Button
+            android:id="@+id/add_target"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/add_target" />
+
         <CheckBox
             android:id="@+id/opening_toast"
             android:layout_width="wrap_content"
