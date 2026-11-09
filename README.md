@@ -50,3 +50,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | `SettingsActivity` | 설정 화면 |
 
 설계: `docs/superpowers/specs/2026-11-09-screen-translator-design.md`
+
+## 라이선스
+
+MIT. `LICENSE` 파일을 참고하세요.
