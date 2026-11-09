@@ -268,3 +268,84 @@ screen-translator/
   3. 받는 중 진행률이 보이는지
   4. 설치 확인 창이 뜨고, 설치 후 v0.2.0으로 돌아오는지
   5. 앱 캐시에 APK가 남지 않는지
+
+## 13. 상태 머신 정리 (2026-11-09)
+
+### 목적
+
+여러 개의 참/거짓 값과 흩어진 화면 갱신으로 표현되던 상태를, 명시적인 상태 목록과 순수한 전이 함수로 바꾼다. 화면과 동작은 상태만 보고 정한다. 이번에 함께 고치는 문제는 다음과 같다.
+
+| 곳 | 지금 문제 | 원인 |
+|---|---|---|
+| 어시스턴트 세션 | 저장이 끝나기 전에 다시 누르면 번역 앱이 두 번 열리거나, 앞 작업이 새 세션을 닫는다 | `handled`를 새 `onShow`가 초기화하고, 앞 작업은 자기가 어느 세션 것인지 모른다 |
+| 업데이트 영역 | 확인 실패 표시가 화면을 다시 열면 사라진다 | 실패 상태를 저장하지 않는다 |
+| 업데이트 영역 | 설치 확인 창이 떠 있는 동안 [업데이트]가 다시 켜진다 | "설치 확인 대기" 상태가 없다 |
+| 업데이트 영역 | 받는 중에 화면이 새로 만들어지면 진행률이 사라진다 | 진행률을 화면에만 쓴다 |
+
+### A. 어시스턴트 세션 (`SessionMachine`)
+
+- 상태: `Idle`, `Waiting(gen)`, `Saving(gen)`, `Done`
+  - `gen`은 `onShow`마다 1씩 늘어나는 세대 번호다.
+- 전이 규칙
+
+| 사건 | 조건 | 다음 상태 | 할 일 |
+|---|---|---|---|
+| `show()` | 언제나 | `Waiting(gen+1)` | 2초 타이머(그 세대) 시작 |
+| `screenshot(bitmap)` | `Waiting(g)` | `Saving(g)` | `bitmap`이 null이면 바로 `Done` + 안내 |
+| `screenshot` | 그 밖 | 그대로 | 무시 |
+| `timeout(g)` | `Waiting(g)` | `Done` | 안내 |
+| `timeout(g)` | 그 밖(지난 세대 포함) | 그대로 | 무시 |
+| `saved(g, ok)` | `Saving(g)` | `Done` | 성공이면 번역 앱 실행, 실패면 안내 |
+| `saved(g, …)` | 그 밖(지난 세대) | 그대로 | 실행하지 않음. 그 캡처는 10분 뒤 정리 |
+
+- 결과적으로 **가장 마지막에 누른 것 하나만** 번역 앱으로 간다.
+- `SessionMachine`은 Android에 의존하지 않는다. 전이 함수는 "다음 상태"와 "할 일(Effect)"을 돌려주고, `AssistSession`이 그 일을 실행한다.
+
+### B. 업데이트 영역 (`UpdateFlow`)
+
+- 상태(`UpdateUi`): `Idle`, `Checking`, `CheckFailed`, `Downloading(pct)`, `AwaitingInstall`
+  - `Idle`이면 화면은 저장된 마지막 결과(`latestRelease`)와 현재 버전으로 "최신" 또는 "새 버전 있음"을 그린다.
+- 전이 규칙(`UpdateUi.next(state, event)`, 허용되지 않은 사건은 상태를 바꾸지 않는다)
+
+| 지금 | 사건 | 다음 |
+|---|---|---|
+| `Idle`, `CheckFailed` | `CheckStarted` | `Checking` |
+| `Checking` | `CheckOk` | `Idle` |
+| `Checking` | `CheckError` | `CheckFailed` |
+| `Idle`, `CheckFailed` | `DownloadStarted` | `Downloading(0)` |
+| `Downloading` | `Progress(p)` | `Downloading(p)` |
+| `Downloading` | `Committed` | `AwaitingInstall` |
+| `Downloading` | `Cancelled`, `DownloadError` | `Idle` |
+| `AwaitingInstall` | `InstallFinished` | `Idle` |
+
+- `UpdateFlow`는 프로세스에 하나만 있다. 상태와 리스너, 백그라운드 작업을 맡는다.
+  - 설정 화면은 `onResume`에 리스너로 등록하고 `onPause`에 해제한다. 리스너가 등록되면 즉시 현재 상태를 받는다.
+  - 받는 중 취소는 지금처럼 `onStop`에서 한다.
+- 화면 모양은 순수 함수 `UpdateView.of(state, latest, currentVersion)`가 정한다. 결과는 `UpdateView(text, args, button, enabled)`이고, `button`은 `CHECK`, `INSTALL`, `RETRY`, `NONE` 중 하나다.
+  - `Checking`: 확인 중…, 버튼 비활성
+  - `CheckFailed`: 확인하지 못했어요, [다시 시도]
+  - `Downloading(p)`: 받는 중… p%, 버튼 비활성
+  - `AwaitingInstall`: 설치 확인 중…(새 문구), 버튼 비활성
+  - `Idle`: 새 버전이 있으면 새 버전 있음 + [업데이트], 없으면 최신 + [지금 확인]
+- `InstallResultReceiver`는 사용자 확인이 필요하다는 결과가 아닌 모든 결과에 대해 `UpdateFlow`에 `InstallFinished`를 보낸다. 사용자가 확인 창에서 취소한 경우(`STATUS_FAILURE_ABORTED`)도 포함한다.
+  - 취소한 경우는 실패 토스트를 띄우지 않는다.
+- 받기 실패 문구를 따로 둔다: `update_download_failed`("업데이트를 받지 못했어요"). 확인 실패와 구분한다.
+
+### 테스트
+
+- `SessionMachineTest` (JVM)
+  - 정상 흐름
+  - null 스크린샷
+  - 시간 초과
+  - 지난 세대의 시간 초과 무시
+  - 저장 중에 다시 눌렀을 때 앞 세대의 저장 결과는 실행하지 않고 새 세대만 실행
+  - `Done` 뒤의 스크린샷 무시
+- `UpdateUiTest` (JVM)
+  - 표의 모든 허용 전이
+  - 허용되지 않은 전이 몇 가지가 상태를 바꾸지 않는지(`Downloading` 중 `CheckStarted`, `AwaitingInstall` 중 `DownloadStarted`, `Idle`에서 `Progress`)
+- `UpdateViewTest` (JVM): 상태마다 문구 id, 인자, 버튼, 활성 여부
+- 기기
+  - 저장 중 연달아 누르기: 번역 앱이 한 번만 열린다.
+  - 확인 실패 뒤 화면을 다시 열어도 실패 표시가 남는다.
+  - 설치 확인 창에서 취소하면 [업데이트]가 다시 켜진다.
+  - 업데이트가 끝까지 된다.
