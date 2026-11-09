@@ -350,32 +350,47 @@ screen-translator/
   - 설치 확인 창에서 취소하면 [업데이트]가 다시 켜진다.
   - 업데이트가 끝까지 된다.
 
-## 14. v0.4.1 정리 (2026-11-09)
+## 14. v0.4.1 정리 (2026-11-09, 설계 검토 반영)
 
 ### A. 번역 앱 대상 판단
 
-- `TargetResolver.status(c): TargetStatus`를 둔다. 값은 세 가지다.
-  - `AVAILABLE`: 그 컴포넌트가 `SEND image/png`을 받는다.
-  - `PACKAGE_ONLY`: 그 컴포넌트는 없지만(예: 번역 앱 업데이트로 화면 이름이 바뀜) 같은 패키지의 다른 화면이 `SEND image/png`을 받는다.
-  - `MISSING`: 둘 다 아니다.
-- 조회에는 `MATCH_DISABLED_COMPONENTS`를 쓰지 않는다. 비활성화된 화면은 보낼 수 없으므로 `MISSING` 또는 `PACKAGE_ONLY`다.
+- `TargetResolver.resolve(c: ComponentName): Target`를 둔다.
+  - `sealed interface Target { data class Exact(val component: ComponentName); object Missing }`
+- 판단 규칙
+  1. 그 컴포넌트가 `SEND image/png`을 받으면 → `Exact(c)`
+  2. 아니면 같은 패키지에서 `SEND image/png`을 받는 화면을 조회한다(`setPackage`). **정확히 하나**면 → `Exact(그 화면)`. 번역 앱 업데이트로 화면 이름이 바뀐 경우가 여기에 해당한다.
+  3. 없거나 둘 이상이면 → `Missing`. `setPackage`로 보내면 시스템 선택 창이 뜨거나, 예전에 고른 "항상" 화면으로 조용히 가기 때문이다. 구글 앱은 렌즈와 저장 두 화면이 있다.
+- 조회에는 비활성화된 화면을 넣지 않는다. 보낼 수 없기 때문이다.
 - 홈버튼(`AssistSession`)과 설정 화면이 같은 판단을 쓴다.
-  - 홈버튼: `AVAILABLE`이면 그 컴포넌트, `PACKAGE_ONLY`면 `setPackage(패키지)`, `MISSING`이면 공유 메뉴
-  - 설정 화면: `MISSING`만 회색 "(설치 안 됨)"으로 표시하고 기본 앱으로 고를 수 없다. `PACKAGE_ONLY`는 정상으로 표시한다.
-  - "여는 중…" 토스트는 `AVAILABLE`, `PACKAGE_ONLY`일 때 띄운다.
-- `label`, `icon`은 `MATCH_DISABLED_COMPONENTS`로 조회해, 비활성화된 앱도 이름으로 표시한다. 활동 정보가 없으면 앱 정보로, 그것도 없으면 패키지 이름으로 표시한다.
+  - 홈버튼: `Exact`면 그 컴포넌트, `Missing`이면 공유 메뉴
+  - 설정 화면: `Missing`만 회색 "(설치 안 됨)"으로 표시하고 기본 앱으로 고를 수 없다.
+- "여는 중…" 토스트는 실제로 보낸 컴포넌트(`Exact`의 값)의 이름으로 띄운다. 공유 메뉴로 갔을 때는 띄우지 않는다.
+- `buildIntent(target: Target, uri)`로 바꾼다. `Exact`면 `component`, `Missing`이면 대상 없음이다.
+- 이름과 아이콘 조회
+  - `getActivityInfo(c, MATCH_DISABLED_COMPONENTS or MATCH_DISABLED_UNTIL_USED_COMPONENTS)`로 활동 정보를 얻는다. 이름은 `loadLabel`, 아이콘은 `loadIcon`이다.
+  - 실패하면 같은 플래그로 `getApplicationInfo` → `loadLabel` / `getApplicationIcon`을 쓴다.
+  - 그것도 실패하면 이름은 패키지 이름, 아이콘은 null이다.
+  - 비활성화된 앱(삼성 "사용 안 함" 포함)도 이름으로 보인다.
 
 ### B. 상태바·내비게이션 바 잘라내기
 
-- 설정 체크박스: "캡처에서 상태바와 내비게이션 바 빼기". 저장 키는 `crop_system_bars`, **기본값은 꺼짐**이다.
-- 켜져 있으면 `AssistSession`이 스크린샷을 저장하기 전에 시스템 바 영역을 잘라낸다.
-  - 크기는 세션 창의 `WindowInsets.getInsets(Type.systemBars())`(left, top, right, bottom)에서 얻는다.
-  - 인셋을 얻지 못하면 자르지 않는다.
-- 잘라낼 영역은 순수 함수 `CropRect.of(width, height, left, top, right, bottom): Rect?`가 계산한다.
-  - 인셋이 모두 0이면 null이다(자르지 않음).
-  - 잘라낸 결과의 너비나 높이가 원래의 절반보다 작으면 null이다(잘못된 인셋 방어).
-  - 값은 정수 4개를 담은 data class로 돌려준다. Android `Rect`는 JVM 테스트에서 동작하지 않기 때문이다.
+- 설정 체크박스: "캡처에서 상태바와 내비게이션 바 빼기". 저장 키 `crop_system_bars`, **기본값 꺼짐**
+- 크기 정보는 **세션 창의 인셋을 쓰지 않는다**(AOSP 13 확인). 이유는 세 가지다.
+  - 세션 창은 `onShow` 다음에 붙는다.
+  - 캡처를 받을 때는 첫 레이아웃과 경쟁한다.
+  - 그 값은 캡처된 앱이 아니라 세션 창 기준이다.
+- 대신 `WindowManager.currentWindowMetrics`에서 두 가지를 쓴다(API 30+).
+  - `bounds`(화면 크기)
+  - `windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())`(시스템 바 자리 크기, 보이는지와 상관없음)
+- `WindowManager`는 `context.getSystemService(WindowManager::class.java)`로 얻는다.
+- 잘라낼 영역은 순수 함수 `CropRect.of(bitmapW, bitmapH, displayW, displayH, left, top, right, bottom): CropRect?`가 계산한다.
+  - 결과는 정수 4개를 담은 data class `CropRect(x, y, width, height)`다.
+  - 화면과 비트맵의 가로세로 비율이 1% 넘게 다르면 null(자르지 않음)이다.
+  - 각 인셋은 `bitmap 크기 / display 크기` 비율로 환산한다. 음수는 0으로 본다.
+  - 인셋이 모두 0이면 null이다.
+  - 잘라낸 결과의 너비나 높이가 원래의 절반보다 작으면 null이다(잘못된 값 방어).
 - 잘라낸 결과는 `Bitmap.createBitmap(src, x, y, w, h)`로 만든다.
+- **알려진 한계**: 전체 화면(immersive) 앱에서는 시스템 바가 보이지 않는데도 그 자리를 잘라낸다. 그래서 내용 끝이 조금 잘린다. 옵션이 기본 꺼짐이라 받아들인다.
 
 ### C. 사소한 항목
 
@@ -383,28 +398,39 @@ screen-translator/
 |---|---|
 | `TargetList.decode`가 `/` 없는 항목을 남김 | 버린다 |
 | 자기 자신 제외 규칙이 `startsWith` | `base = selfPackage.removeSuffix(".dev")`로 두고, `base`와 `base + ".dev"`만 뺀다 |
-| 추가 선택 창이 메인 스레드에서 목록·이름·아이콘을 읽음 | 목록과 이름은 백그라운드에서 읽은 뒤 창을 띄운다. 아이콘은 화면이 살아 있는 동안 캐시한다 |
-| 업데이트 확인 중 `IOException` 외의 예외 | `UpdateFlow.startCheck`가 모든 `Exception`을 실패로 처리한다(`CheckError`). 설치 쪽도 같다(`DownloadError`) |
+| 추가 선택 창이 메인 스레드에서 목록·이름·아이콘을 읽음 | 목록과 이름은 백그라운드에서 읽은 뒤, 화면이 살아 있을 때만 창을 띄운다. 아이콘은 화면이 살아 있는 동안 캐시한다 |
+| 업데이트 중 `IOException` 외의 예외 | 확인: 모든 `Exception`을 `CheckError`로 처리한다. 설치: `IOException`이 아닌 예외도 `DownloadError`로 처리하고, `onError`에는 `IOException`으로 감싸 넘긴다 |
 | `Launch`에서 uri가 없으면 `hide()`를 건너뜀 | 항상 `hide()` |
 | `resetForTest`에 표시 없음 | `@VisibleForTesting` |
 | 스크린샷 대기 2초 | 3초 |
 | 릴리스 APK 이름 규칙 | README(영어·한국어) 릴리스 절에 "APK 첨부 이름은 `screen-translator-<tag>.apk`여야 앱이 업데이트로 인식한다"를 적는다 |
-| `StubRecognitionService` 공개 | `android:permission="android.permission.RECORD_AUDIO"`를 붙인다. 기기에서 디지털 어시스턴트 목록에 그대로 뜨는지 확인하고, 안 뜨면 되돌린다 |
+| `StubRecognitionService` 공개 | **바꾸지 않는다.** `RecognitionService`가 이미 호출자의 마이크 권한을 확인하고, 이 껍데기는 오류만 돌려준다. 권한 조건을 붙여도 얻는 것이 없고, 어시스턴트 자격이나 연결에 영향을 줄 위험만 있다. TODO에 이유를 남긴다 |
 | PNG 압축 중 표시 없음 | 고치지 않는다. 세션 창은 보이지 않고 압축은 대부분 순식간에 끝난다 |
 
 ### 테스트
 
 - `TargetResolverTest`
-  - `status`: 세 가지 경우
-  - `buildIntent`: 상태별 인텐트(컴포넌트 / 패키지 / 공유 메뉴)
-  - 비활성화된 앱의 이름
-  - 자기 자신 제외: `screentranslator`와 `screentranslator.dev`는 빠지고 `screentranslatorfoo`는 남음
+  - `resolve`
+    - 정확한 화면 → `Exact(c)`
+    - 화면은 없고 같은 패키지에 받는 화면이 하나 → `Exact(그 화면)`
+    - 같은 패키지에 받는 화면이 둘 → `Missing`
+    - 패키지가 없음 → `Missing`
+    - 비활성화된 화면(`setComponentEnabledSetting(DISABLED)`) → `Missing`
+  - `buildIntent`: `Exact`면 컴포넌트, `Missing`이면 대상 없음
+  - `label`: 비활성화된 화면의 이름(실제로 비활성화한 상태)
+  - 자기 자신 제외: `screentranslator`와 `screentranslator.dev`는 빠지고, `screentranslatorfoo`는 남음
 - `TargetListTest`: `decode`가 `/` 없는 항목을 버림
-- `CropRectTest`: 인셋 없음, 위아래, 가로 화면 좌우, 비정상 인셋
-- `UpdateFlowTest`: 확인과 설치 중 `RuntimeException`이 실패로 처리됨
+- `CropRectTest`
+  - 인셋 없음
+  - 세로 화면 위아래
+  - 가로 화면 옆 바
+  - 비트맵이 화면의 절반 크기일 때 비율 환산
+  - 가로세로 비율이 다름 → null
+  - 비정상 인셋 → null
+  - 음수 인셋은 0으로 봄
+- `UpdateFlowTest`: 확인 중 `RuntimeException` → `CheckFailed`, 설치 중 `RuntimeException` → `Idle` + `onError`
 - `PrefsTest`: `cropSystemBars` 기본값 꺼짐과 저장
 - 기기
   - 잘라내기를 켜고 보낸 이미지에 상태바와 홈 버튼 줄이 없는지
-  - 음성 인식 권한을 붙인 뒤에도 디지털 어시스턴트 목록에 뜨는지
   - 추가 선택 창이 정상인지
-  - 업데이트(시험용 빌드 → v0.4.0)
+  - 업데이트(v0.4.0 → v0.4.1)
