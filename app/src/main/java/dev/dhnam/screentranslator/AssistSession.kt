@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.service.voice.VoiceInteractionSession
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
@@ -47,7 +49,7 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
             }
             is SessionEffect.Save -> {
                 timer?.let(main::removeCallbacks)
-                val bitmap = screenshot ?: return
+                val bitmap = screenshot?.let { if (Prefs(context).cropSystemBars) cropSystemBars(it) else it } ?: return
                 Thread {
                     val saved = ShotSharer.prepare(
                         store,
@@ -57,7 +59,7 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
                     main.post { run(machine.saved(effect.gen, saved != null), null, saved) }
                 }.start()
             }
-            SessionEffect.Launch -> launch(uri ?: return)
+            SessionEffect.Launch -> if (uri != null) launch(uri) else hide()
             is SessionEffect.Message -> {
                 timer?.let(main::removeCallbacks)
                 Toast.makeText(context, effect.res, Toast.LENGTH_LONG).show()
@@ -65,6 +67,20 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
             }
             SessionEffect.None -> Unit
         }
+    }
+
+    /**
+     * 상태바·내비게이션 바 자리를 잘라낸다. 크기는 세션 창이 아니라 화면 정보에서 읽는다
+     * (세션 창 인셋은 아직 없거나 세션 창 기준이다). 알 수 없거나 이상하면 원본을 그대로 쓴다.
+     */
+    private fun cropSystemBars(src: Bitmap): Bitmap = try {
+        val metrics = context.getSystemService(WindowManager::class.java).currentWindowMetrics
+        val bounds = metrics.bounds
+        val i = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
+        val r = CropRect.of(src.width, src.height, bounds.width(), bounds.height(), i.left, i.top, i.right, i.bottom)
+        if (r == null) src else Bitmap.createBitmap(src, r.x, r.y, r.width, r.height)
+    } catch (e: RuntimeException) {
+        src
     }
 
     private fun launch(uri: Uri) {
@@ -86,7 +102,7 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     private companion object {
-        const val SCREENSHOT_TIMEOUT_MS = 2000L
+        const val SCREENSHOT_TIMEOUT_MS = 3000L
         val main = Handler(Looper.getMainLooper())
 
         /**

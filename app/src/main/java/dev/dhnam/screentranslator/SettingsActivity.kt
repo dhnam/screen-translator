@@ -63,6 +63,10 @@ class SettingsActivity : Activity() {
             isChecked = prefs.showOpeningToast
             setOnCheckedChangeListener { _, checked -> prefs.showOpeningToast = checked }
         }
+        findViewById<CheckBox>(R.id.crop_system_bars).apply {
+            isChecked = prefs.cropSystemBars
+            setOnCheckedChangeListener { _, checked -> prefs.cropSystemBars = checked }
+        }
 
         val shots = File(cacheDir, "shots")
         Thread { ShotStore(shots).purgeOlderThan(ShotStore.MAX_AGE_MS) }.start()
