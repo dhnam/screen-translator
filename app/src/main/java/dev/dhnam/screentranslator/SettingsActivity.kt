@@ -3,11 +3,13 @@ package dev.dhnam.screentranslator
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.UiModeManager
 import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -24,6 +26,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.Toast
 import android.widget.TextView
 import java.io.File
@@ -54,6 +57,8 @@ class SettingsActivity : Activity() {
 
         updateStatus = findViewById(R.id.update_status)
         updateAction = findViewById(R.id.update_action)
+
+        setupTheme()
 
         findViewById<CheckBox>(R.id.opening_toast).apply {
             isChecked = prefs.showOpeningToast
@@ -190,6 +195,31 @@ class SettingsActivity : Activity() {
     }
 
 
+    /** 테마 선택. 앱별 다크 모드는 Android 12(API 31)부터라 그 아래에서는 숨기고 시스템을 따른다. */
+    private fun setupTheme() {
+        val section = findViewById<View>(R.id.theme_section)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            section.visibility = View.GONE
+            return
+        }
+        val ids = mapOf(ThemeMode.SYSTEM to R.id.theme_system, ThemeMode.LIGHT to R.id.theme_light, ThemeMode.DARK to R.id.theme_dark)
+        val group = findViewById<RadioGroup>(R.id.theme_group)
+        group.check(ids.getValue(prefs.themeMode))
+        group.setOnCheckedChangeListener { _, id ->
+            val mode = ids.entries.first { it.value == id }.key
+            if (mode == prefs.themeMode) return@setOnCheckedChangeListener
+            prefs.themeMode = mode
+            // 시스템이 앱별로 기억하고, 바뀌면 화면을 다시 만든다.
+            getSystemService(UiModeManager::class.java).setApplicationNightMode(mode.nightMode)
+        }
+    }
+
+    /** 테마 글자색. 기본 아이콘을 어두운 배경에서도 보이게 칠할 때 쓴다. */
+    private fun textColor(): ColorStateList? {
+        val a = obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+        return try { a.getColorStateList(0) } finally { a.recycle() }
+    }
+
     private fun update(change: (TargetList) -> TargetList) {
         prefs.targetList = change(prefs.targetList)
         renderTargets()
@@ -225,6 +255,7 @@ class SettingsActivity : Activity() {
             }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             row.addView(ImageButton(this).apply {
                 setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+                imageTintList = textColor()
                 background = null
                 contentDescription = getString(R.string.remove_target)
                 setOnClickListener { update { it.remove(flat) } }

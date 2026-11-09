@@ -29,6 +29,13 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_OPENING_TOAST, false)
         set(value) { sp.edit().putBoolean(KEY_OPENING_TOAST, value).apply() }
 
+    /** 설정 화면 테마. 저장된 값이 없거나 알 수 없으면 시스템을 따른다. */
+    var themeMode: ThemeMode
+        get() = sp.getString(KEY_THEME_MODE, null)
+            ?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } }
+            ?: ThemeMode.SYSTEM
+        set(value) { sp.edit().putString(KEY_THEME_MODE, value.name).apply() }
+
     /** 마지막 업데이트 확인 시각(ms). 확인한 적이 없으면 0. */
     var updateCheckedAt: Long
         get() = sp.getLong(KEY_UPDATE_CHECKED_AT, 0L)
@@ -67,6 +74,7 @@ class Prefs(context: Context) {
         const val KEY_DEFAULT = "default_target"
         const val KEY_OLD_TARGET = "target"
         const val KEY_OPENING_TOAST = "opening_toast"
+        const val KEY_THEME_MODE = "theme_mode"
         const val KEY_UPDATE_CHECKED_AT = "update_checked_at"
         const val KEY_UPDATE_TAG = "update_tag"
         const val KEY_UPDATE_URL = "update_url"

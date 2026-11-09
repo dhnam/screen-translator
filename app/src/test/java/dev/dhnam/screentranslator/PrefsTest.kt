@@ -48,6 +48,24 @@ class PrefsTest {
         assertFalse(sp.contains("update_tag"))
     }
 
+    @Test fun themeMode_default_isSystem() = assertEquals(ThemeMode.SYSTEM, Prefs(ctx).themeMode)
+
+    @Test fun themeMode_roundTrip() {
+        Prefs(ctx).themeMode = ThemeMode.DARK
+        assertEquals(ThemeMode.DARK, Prefs(ctx).themeMode)
+    }
+
+    @Test fun themeMode_unknownStored_isSystem() {
+        sp.edit().putString("theme_mode", "SEPIA").commit()
+        assertEquals(ThemeMode.SYSTEM, Prefs(ctx).themeMode)
+    }
+
+    @Test fun themeMode_mapsToUiModeManager() {
+        assertEquals(android.app.UiModeManager.MODE_NIGHT_AUTO, ThemeMode.SYSTEM.nightMode)
+        assertEquals(android.app.UiModeManager.MODE_NIGHT_NO, ThemeMode.LIGHT.nightMode)
+        assertEquals(android.app.UiModeManager.MODE_NIGHT_YES, ThemeMode.DARK.nightMode)
+    }
+
     @Test fun openingToast_default_isOff() = assertEquals(false, Prefs(ctx).showOpeningToast)
 
     @Test fun openingToast_roundTrip() {

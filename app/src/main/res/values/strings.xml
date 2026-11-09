@@ -32,4 +32,8 @@
     <string name="update_permission_message">To install updates, allow this app to install apps.</string>
     <string name="update_permission_open">Open settings</string>
     <string name="update_downloading_short">Downloading…</string>
+    <string name="theme_title">Theme</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
 </resources>
