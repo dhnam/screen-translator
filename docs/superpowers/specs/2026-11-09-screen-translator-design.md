@@ -193,3 +193,78 @@ screen-translator/
 - `Prefs` (Robolectric): 저장 후 다시 읽기, 예전 키를 이어받은 뒤 그 키가 지워지는지
 - `TargetResolver` (Robolectric): `shareTargets`에서 이 앱이 빠지는지, `buildIntent`가 컴포넌트를 정확히 지정하는지, 설치 안 된 컴포넌트를 `isAvailable`이 false로 판별하는지, `finalIntent`가 그대로 동작하는지
 - 기기(dev 앱): DeepL을 추가해 기본 앱으로 지정하고 보내기, 제거, 기본 앱 제거 시 다음 앱으로 넘어가는지, 목록을 다 비웠을 때 공유 메뉴가 뜨는지
+
+## 12. 업데이트 확인과 설치 (2026-11-09)
+
+### 목적
+
+앱이 GitHub Releases에서 새 버전을 직접 확인하고, 사용자가 누르면 받아서 설치까지 한다. APK 파일은 폰에 남지 않는다.
+
+### 화면
+
+- 설정 화면 맨 아래에 "업데이트" 영역을 둔다. 상태 한 줄과 버튼 하나로 구성한다.
+
+| 상태 | 문구 | 버튼 |
+|---|---|---|
+| 최신 | 최신 버전이에요 (v현재) | 지금 확인 |
+| 새 버전 있음 | 새 버전 v최신이 있어요 | 업데이트 |
+| 확인 중 | 확인 중… | (비활성) |
+| 받는 중 | 받는 중… N% | (비활성) |
+| 확인 실패 | 업데이트를 확인하지 못했어요 | 다시 시도 |
+| dev 빌드 | 개발용 앱은 업데이트 확인을 하지 않아요 | (없음) |
+
+- 설정 화면이 보일 때(`onResume`) 마지막 확인에서 24시간이 지났으면 자동으로 확인한다. 마지막 결과는 저장해 두고, 화면을 열면 먼저 그 결과를 보여 준다.
+- [업데이트]를 눌렀을 때 `packageManager.canRequestPackageInstalls()`가 false면 안내 창("업데이트를 설치하려면 이 앱이 앱을 설치할 수 있도록 허용해야 해요")을 띄우고 `Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES`(`package:<패키지>`)로 보낸다.
+
+### 흐름
+
+1. **조회**: `GET https://api.github.com/repos/dhnam/screen-translator/releases/latest`
+   - 헤더는 `Accept: application/vnd.github+json`
+   - 연결과 응답 대기 시간은 각 10초
+   - 응답에서 `tag_name`을 읽고, `assets` 중 이름이 `screen-translator-`로 시작하고 `.apk`로 끝나는 첫 항목의 `browser_download_url`, `size`, `digest`를 읽는다. `digest`는 `sha256:<hex>` 형식이고 없을 수 있다.
+   - APK 첨부가 없으면 "새 버전 없음"으로 본다.
+2. **비교**: 태그와 현재 `versionName`을 `Version`으로 해석해 비교한다.
+   - 앞의 `v`는 무시하고, 점으로 나눈 숫자를 차례로 비교한다. 빠진 자리는 0으로 본다.
+   - 해석할 수 없으면 새 버전이 아닌 것으로 본다.
+3. **받기와 설치**: `PackageInstaller` 세션을 만든다(`MODE_FULL_INSTALL`, `appPackageName`은 이 앱).
+   - APK를 받으면서 세션 출력 스트림에 쓰고, 동시에 SHA-256을 계산한다. 진행률은 `size` 기준이다.
+   - `digest`가 있고 계산한 값과 다르면 세션을 `abandon`하고 "받은 파일이 손상됐어요"를 안내한다.
+   - 맞으면 `commit`한다. 결과는 `InstallResultReceiver`로 받는다.
+     - `STATUS_PENDING_USER_ACTION`: 함께 온 확인 인텐트를 실행한다.
+     - `STATUS_SUCCESS`: 앱이 새 버전으로 다시 시작된다.
+     - 그 밖: "업데이트를 설치하지 못했어요 (<메시지>)" 토스트
+4. **보안**: Android는 서명이 다른 APK로 이 앱을 업데이트하지 않는다. 해시 확인은 전송 중 손상을 잡기 위한 추가 장치다. 통신은 HTTPS만 쓴다.
+
+### 저장
+
+`settings` 파일에 다섯 가지를 저장한다. `update_checked_at`(마지막 확인 시각, ms), `update_tag`, `update_url`, `update_size`, `update_sha256`. 마지막 확인에서 새 버전이 없었으면 tag/url/size/sha256은 지운다.
+
+### 구성 요소
+
+| 단위 | 하는 일 |
+|---|---|
+| `Version` | 버전 해석과 비교, 24시간 자동 확인 판단(`shouldAutoCheck`). 순수 로직 |
+| `ReleaseInfo` | `tag`, `url`, `size`, `sha256?`. GitHub 응답 JSON을 해석한다(`ReleaseInfo.parse`) |
+| `UpdateChecker` | 조회와 비교 |
+| `UpdateInstaller` | 받기, 해시 확인, 설치 세션 |
+| `HashingCopy` | 스트림을 복사하면서 SHA-256과 진행률을 계산한다. 순수 로직 |
+| `InstallResultReceiver` | 설치 결과 처리 |
+| `Prefs` | 마지막 확인 시각과 마지막 결과 |
+
+- 매니페스트: `INTERNET`, `REQUEST_INSTALL_PACKAGES`, `InstallResultReceiver`(exported=false)
+- 빌드: `buildConfig` 사용. `BuildConfig.UPDATE_ENABLED`는 release에서 true, debug에서 false
+
+### 테스트
+
+- **JVM**
+  - `Version`: `v0.2.0` == `0.2.0`, `0.10.0` > `0.9.0`, `0.2` == `0.2.0`, `1.0.0` > `0.99.99`, 해석 불가는 null
+  - `isNewer`: 해석 불가면 false
+  - `shouldAutoCheck`: 처음(0), 24시간 미만, 이상, 시계가 거꾸로 간 경우
+  - `HashingCopy`: 알려진 입력의 SHA-256, 진행률 콜백 마지막 값이 전체 크기
+- **Robolectric**: `ReleaseInfo.parse` — 정상, APK 첨부 없음 → null, `digest` 없음 → sha256 null, 다른 이름의 첨부만 있음 → null
+- **기기**: 같은 키로 서명하고 versionName만 `0.1.9`(versionCode는 v0.2.0과 같게)로 낮춘 릴리스 빌드를 업데이트로 설치한다. 그다음 아래를 확인한다.
+  1. "새 버전 v0.2.0이 있어요"가 표시되는지
+  2. 권한 안내가 뜨고 허용 화면으로 가는지
+  3. 받는 중 진행률이 보이는지
+  4. 설치 확인 창이 뜨고, 설치 후 v0.2.0으로 돌아오는지
+  5. 앱 캐시에 APK가 남지 않는지
