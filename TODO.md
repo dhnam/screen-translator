@@ -59,7 +59,7 @@
 
 ## 아이디어
 
-- [ ] 업데이트 받기 중 GitHub가 5xx를 주면 몇 초 뒤 한 번 자동 재시도하고, 그래도 실패하면 API 경로(`/releases/assets/{id}`, `Accept: application/octet-stream`)로 한 번 더 받기. 2026-11-09 v0.4.2 직후 `release-assets.githubusercontent.com`이 몇 분간 504를 냈을 때 API 경로는 정상이었다.
+- [x] 업데이트 받기를 API 경로(`/releases/assets/{id}`, `Accept: application/octet-stream`) 먼저, 실패하면 일반 경로로. (v0.4.3) 자동 재시도(같은 경로 다시)는 넣지 않음. 2026-11-09 v0.4.2 직후 `release-assets.githubusercontent.com`이 몇 분간 504를 냈을 때 API 경로는 정상이었다.
 
 ## 알고 둔 동작
 
