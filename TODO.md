@@ -57,6 +57,10 @@
 - [ ] 설치 결과 수신기가 `EXTRA_SESSION_ID`와 `pendingSessionId`를 비교하지 않는다(남은 예전 세션의 확인 창이 저장될 수 있음).
 - [ ] APK 크기를 모르면(0) 끝까지 "다운로드 준비 중…"으로 보인다(GitHub는 항상 크기를 주므로 실제 영향 없음).
 
+## 아이디어
+
+- [ ] 업데이트 받기 중 GitHub가 5xx를 주면 몇 초 뒤 한 번 자동 재시도하고, 그래도 실패하면 API 경로(`/releases/assets/{id}`, `Accept: application/octet-stream`)로 한 번 더 받기. 2026-11-09 v0.4.2 직후 `release-assets.githubusercontent.com`이 몇 분간 504를 냈을 때 API 경로는 정상이었다.
+
 ## 알고 둔 동작
 
 - 업데이트 "확인 실패" 표시는 앱이 실행되는 동안만 유지된다. 최근 앱 목록에서 지우면 마지막 성공 결과로 돌아간다(그대로 두기로 함).
