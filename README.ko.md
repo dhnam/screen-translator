@@ -65,6 +65,8 @@ git tag v0.1.1 && git push origin v0.1.1
 | `ShotStore` | 캡처 저장과 10분 지난 캡처 정리 |
 | `TargetList` | 번역 앱 목록과 기본 앱 규칙(추가, 제거, 기본 지정, v0.1.0 설정 이어받기) |
 | `TargetResolver` / `Prefs` | 이미지를 받는 화면 조회, 공유 인텐트 생성(대상이 없으면 공유 메뉴), 설정 저장 |
+| `SessionMachine` | 어시스턴트 세션 상태 기계(마지막에 누른 것만 처리) |
+| `UpdateUi` / `UpdateView` / `UpdateFlow` | 업데이트 영역 상태, 전이, 표시, 백그라운드 작업 |
 | `SettingsActivity` | 설정 화면 |
 
 설계: `docs/superpowers/specs/2026-11-09-screen-translator-design.md`

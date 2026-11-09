@@ -65,6 +65,8 @@ git tag v0.1.1 && git push origin v0.1.1
 | `ShotStore` | Saves screenshots and deletes ones older than 10 minutes |
 | `TargetList` | Translator app list and default rules (add, remove, set default, migrate v0.1.0 settings) |
 | `TargetResolver` / `Prefs` | Finds activities that accept images, builds the share intent (share sheet if there's no target), stores settings |
+| `SessionMachine` | Assistant session state machine (latest long-press wins) |
+| `UpdateUi` / `UpdateView` / `UpdateFlow` | Update section state, transitions, display, and background work |
 | `SettingsActivity` | Settings screen |
 
 Design notes (Korean): `docs/superpowers/specs/2026-11-09-screen-translator-design.md`
