@@ -38,6 +38,19 @@ class UpdateFlowConfirmTest {
         assertNull(UpdateFlow.confirmIntent)
     }
 
+    @Test fun confirmArrivingBeforeCommitted_isKept() {
+        UpdateFlow.resetForTest()
+        UpdateFlow.background = { }
+        UpdateFlow.main = { it.run() }
+        UpdateFlow.startInstall({ 7 }) { }
+        assertEquals(UpdateUi.Downloading(null), UpdateFlow.state)
+        val confirm = Intent("confirm")
+        UpdateFlow.setConfirmIntent(confirm)
+        UpdateFlow.dispatch(UpdateEvent.Progress(100))
+        UpdateFlow.dispatch(UpdateEvent.Committed)
+        assertSame(confirm, UpdateFlow.confirmIntent)
+    }
+
     @Test fun setConfirm_whenNotAwaiting_isIgnored() {
         UpdateFlow.dispatch(UpdateEvent.InstallFinished)
         UpdateFlow.setConfirmIntent(Intent("confirm"))

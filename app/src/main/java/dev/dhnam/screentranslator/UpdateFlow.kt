@@ -38,20 +38,24 @@ object UpdateFlow {
         val n = state.next(e)
         if (n == state) return
         state = n
-        if (n != UpdateUi.AwaitingInstall) confirmIntent = null
+        // 확인 창 알림이 Committed보다 먼저 올 수 있어 받는 중에도 유지하고, 그 밖의 상태로 가면 지운다.
+        if (n != UpdateUi.AwaitingInstall && n !is UpdateUi.Downloading) confirmIntent = null
         listener?.invoke(n)
     }
 
     /**
      * 시스템 설치 확인 창 인텐트. 확인 창을 화면 밖을 눌러 닫았거나(세션은 남고 결과 알림은 오지 않음)
-     * 확인 창이 뜨지 못했을 때 [설치 확인 다시 열기]로 다시 띄우는 데 쓴다. "설치 확인 대기"일 때만 있다.
+     * 확인 창이 뜨지 못했을 때 [설치 확인 다시 열기]로 다시 띄우는 데 쓴다. "받는 중"이나 "설치 확인 대기"일 때만 있다.
      */
     @Volatile var confirmIntent: Intent? = null
         private set
 
-    /** 설치 결과 수신기가 확인 창을 띄울 때 부른다. 화면이 보고 있으면 버튼이 켜지도록 다시 그리게 한다. */
+    /**
+     * 설치 결과 수신기가 확인 창을 띄울 때 부른다. 화면이 보고 있으면 버튼이 켜지도록 다시 그리게 한다.
+     * 받는 중(Committed 직전)에 와도 받아 둔다(메인 스레드 처리 순서가 뒤바뀔 수 있음).
+     */
     fun setConfirmIntent(intent: Intent) {
-        if (state != UpdateUi.AwaitingInstall) return
+        if (state != UpdateUi.AwaitingInstall && state !is UpdateUi.Downloading) return
         confirmIntent = intent
         listener?.invoke(state)
     }
