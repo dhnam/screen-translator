@@ -69,12 +69,14 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
 
     private fun launch(uri: Uri) {
         val prefs = Prefs(context)
-        val target = prefs.targetList.default?.let(ComponentName::unflattenFromString)
         val resolver = TargetResolver(context.packageManager, context.packageName)
+        val target = prefs.targetList.default?.let(ComponentName::unflattenFromString)
+            ?.let(resolver::resolve) ?: Target.Missing
         val intent = resolver.finalIntent(resolver.buildIntent(target, uri))
         if (ShotSharer.tryStart { context.startActivity(intent) }) {
-            if (prefs.showOpeningToast && target != null && intent.component == target) {
-                val name = resolver.label(target)
+            val sent = (target as? Target.Exact)?.component
+            if (prefs.showOpeningToast && sent != null && intent.component == sent) {
+                val name = resolver.label(sent)
                 Toast.makeText(context, context.getString(R.string.opening_format, name), Toast.LENGTH_SHORT).show()
             }
         } else {

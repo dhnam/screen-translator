@@ -7,43 +7,71 @@ import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.net.Uri
 
+/** 실제로 보낼 대상: 정확한 화면 하나, 또는 없음(공유 메뉴). */
+sealed interface Target {
+    data class Exact(val component: ComponentName) : Target
+    object Missing : Target
+}
+
 /** 이미지를 받는 화면 조회와 번역 앱 공유 인텐트 생성. */
 class TargetResolver(private val pm: PackageManager, private val selfPackage: String) {
 
-    /** 이미지를 받을 수 있는 화면 목록. 이 앱 자신(.dev 변형 포함)은 뺀다. */
-    fun shareTargets(): List<ComponentName> =
-        pm.queryIntentActivities(Intent(Intent.ACTION_SEND).setType(TYPE), 0)
-            .map { ComponentName(it.activityInfo.packageName, it.activityInfo.name) }
-            .filterNot { it.packageName.startsWith(selfPackage) }
+    /** 이미지를 받을 수 있는 화면 목록. 이 앱 자신(릴리스와 .dev)은 뺀다. */
+    fun shareTargets(): List<ComponentName> {
+        val base = selfPackage.removeSuffix(".dev")
+        val self = setOf(base, "$base.dev")
+        return query(Intent(Intent.ACTION_SEND).setType(TYPE))
+            .filterNot { it.packageName in self }
             .distinct()
+    }
 
-    /** 설치돼 있고 이미지를 받을 수 있는 화면인지. */
-    fun isAvailable(c: ComponentName): Boolean =
-        pm.queryIntentActivities(Intent(Intent.ACTION_SEND).setType(TYPE).setComponent(c), 0).isNotEmpty()
+    /**
+     * 저장된 번역 앱 화면을 실제로 보낼 대상으로 바꾼다.
+     * 그 화면이 이미지를 받으면 그대로, 없으면 같은 앱에서 이미지를 받는 화면이 정확히 하나일 때 그 화면.
+     * 둘 이상이면(예: 구글의 렌즈·저장) 시스템 선택 창을 피하려고 Missing으로 본다.
+     */
+    fun resolve(c: ComponentName): Target {
+        if (query(Intent(Intent.ACTION_SEND).setType(TYPE).setComponent(c)).isNotEmpty()) return Target.Exact(c)
+        val inPackage = query(Intent(Intent.ACTION_SEND).setType(TYPE).setPackage(c.packageName)).distinct()
+        return if (inPackage.size == 1) Target.Exact(inPackage.single()) else Target.Missing
+    }
 
-    /** 표시 이름. 화면 이름이 앱 이름과 다르면 "앱 · 화면". 조회에 실패하면 패키지 이름. */
-    fun label(c: ComponentName): String = try {
-        val app = pm.getApplicationInfo(c.packageName, 0).loadLabel(pm).toString()
-        val activity = pm.getActivityInfo(c, 0).loadLabel(pm).toString()
-        if (activity.isBlank() || activity == app) app else "$app · $activity"
-    } catch (e: PackageManager.NameNotFoundException) {
-        c.packageName
+    /** 표시 이름. 화면 이름이 앱 이름과 다르면 "앱 · 화면". 비활성화된 앱도 이름으로 보인다. 조회에 실패하면 패키지 이름. */
+    fun label(c: ComponentName): String {
+        val app = try {
+            pm.getApplicationInfo(c.packageName, DISABLED_TOO).loadLabel(pm).toString()
+        } catch (e: PackageManager.NameNotFoundException) {
+            return c.packageName
+        }
+        val activity = try {
+            pm.getActivityInfo(c, DISABLED_TOO).loadLabel(pm).toString()
+        } catch (e: PackageManager.NameNotFoundException) {
+            return app
+        }
+        return if (activity.isBlank() || activity == app) app else "$app · $activity"
     }
 
     fun icon(c: ComponentName): Drawable? = try {
-        pm.getActivityIcon(c)
+        pm.getActivityInfo(c, DISABLED_TOO).loadIcon(pm)
     } catch (e: PackageManager.NameNotFoundException) {
-        null
+        try {
+            pm.getApplicationIcon(pm.getApplicationInfo(c.packageName, DISABLED_TOO))
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
     }
 
-    /** 공유 인텐트. `c`가 null이면 대상을 정하지 않는다(→ `finalIntent`에서 공유 메뉴). */
-    fun buildIntent(c: ComponentName?, uri: Uri): Intent = Intent(Intent.ACTION_SEND).apply {
+    /** 공유 인텐트. `Missing`이면 대상을 정하지 않는다(→ `finalIntent`에서 공유 메뉴). */
+    fun buildIntent(target: Target, uri: Uri): Intent = Intent(Intent.ACTION_SEND).apply {
         type = TYPE
         putExtra(Intent.EXTRA_STREAM, uri)
         clipData = ClipData.newRawUri("", uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        component = c
+        component = (target as? Target.Exact)?.component
     }
+
+    private fun query(intent: Intent): List<ComponentName> =
+        pm.queryIntentActivities(intent, 0).map { ComponentName(it.activityInfo.packageName, it.activityInfo.name) }
 
     /** 대상이 없거나 받을 수 없으면 일반 공유 메뉴로 감싼다. 감싼 인텐트에도 URI 읽기 권한을 유지한다. */
     fun finalIntent(intent: Intent): Intent {
@@ -61,5 +89,8 @@ class TargetResolver(private val pm: PackageManager, private val selfPackage: St
 
     private companion object {
         const val TYPE = "image/png"
+        @Suppress("DEPRECATION")
+        const val DISABLED_TOO =
+            PackageManager.MATCH_DISABLED_COMPONENTS or PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS
     }
 }

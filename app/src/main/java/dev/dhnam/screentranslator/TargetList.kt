@@ -28,9 +28,9 @@ data class TargetList(val items: List<String>, val default: String?) {
 
         val INITIAL = TargetList(listOf(PAPAGO, LENS), PAPAGO)
 
-        /** 저장된 값을 읽는다. 빈 줄과 중복은 버리고, 목록에 없는 기본 앱은 첫 번째로 고친다. */
+        /** 저장된 값을 읽는다. 빈 줄, `/`가 없는 항목(컴포넌트가 아님), 중복은 버리고, 목록에 없는 기본 앱은 첫 번째로 고친다. */
         fun decode(items: String?, default: String?): TargetList {
-            val list = items.orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            val list = items.orEmpty().lines().map { it.trim() }.filter { '/' in it }.distinct()
             val d = if (default != null && default in list) default else list.firstOrNull()
             return TargetList(list, d)
         }

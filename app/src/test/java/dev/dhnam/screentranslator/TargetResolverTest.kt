@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
@@ -29,8 +30,9 @@ class TargetResolverTest {
     private val uri: Uri = Uri.parse("content://dev.dhnam.screentranslator.files/shots/shot-1.png")
 
     private val papago = ComponentName.unflattenFromString(TargetList.PAPAGO)!!
+    private val papagoRenamed = ComponentName(papago.packageName, "com.naver.labs.translator.ui.share.ShareActivity")
     private val lens = ComponentName.unflattenFromString(TargetList.LENS)!!
-    private val devSelf = ComponentName("dev.dhnam.screentranslator.dev", "dev.dhnam.screentranslator.Fake")
+    private val saves = ComponentName(lens.packageName, "com.google.android.apps.search.googleapp.saves.SavesShareReceiverWithImageType")
 
     private fun install(cn: ComponentName, appLabel: String? = null, activityLabel: String? = null) {
         val sp = shadowOf(pm)
@@ -51,10 +53,41 @@ class TargetResolverTest {
         })
     }
 
+    private fun disable(cn: ComponentName) =
+        pm.setComponentEnabledSetting(cn, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0)
+
     private fun Intent.has(flag: Int) = flags and flag != 0
 
-    @Test fun buildIntent_setsComponentTypeStreamClipAndFlags() {
-        val i = resolver.buildIntent(papago, uri)
+    // --- resolve ---
+
+    @Test fun resolve_exact_isExact() {
+        install(papago)
+        assertEquals(Target.Exact(papago), resolver.resolve(papago))
+    }
+
+    @Test fun resolve_renamedActivity_singleMatch_isExact() {
+        install(papagoRenamed)
+        assertEquals(Target.Exact(papagoRenamed), resolver.resolve(papago))
+    }
+
+    @Test fun resolve_renamed_twoMatches_isMissing() {
+        install(saves)
+        install(ComponentName(lens.packageName, "com.google.android.apps.search.lens.NewLensActivity"))
+        assertSame(Target.Missing, resolver.resolve(lens))
+    }
+
+    @Test fun resolve_noPackage_isMissing() = assertSame(Target.Missing, resolver.resolve(papago))
+
+    @Test fun resolve_disabledActivity_isMissing() {
+        install(papago)
+        disable(papago)
+        assertSame(Target.Missing, resolver.resolve(papago))
+    }
+
+    // --- intents ---
+
+    @Test fun buildIntent_exact_setsComponentTypeStreamClipAndFlags() {
+        val i = resolver.buildIntent(Target.Exact(papago), uri)
         assertEquals(Intent.ACTION_SEND, i.action)
         assertEquals("image/png", i.type)
         assertEquals(papago, i.component)
@@ -65,19 +98,52 @@ class TargetResolverTest {
         assertTrue(i.has(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    @Test fun shareTargets_excludesSelf() {
-        install(papago); install(lens); install(devSelf)
-        val list = resolver.shareTargets()
-        assertTrue(papago in list && lens in list)
-        assertFalse(devSelf in list)
+    @Test fun buildIntent_missing_noTarget() {
+        val i = resolver.buildIntent(Target.Missing, uri)
+        assertNull(i.component)
+        assertNull(i.`package`)
     }
 
-    @Test fun isAvailable_installed_isTrue() {
+    @Test fun finalIntent_missing_isChooser() {
+        val out = resolver.finalIntent(resolver.buildIntent(Target.Missing, uri))
+        assertEquals(Intent.ACTION_CHOOSER, out.action)
+        assertEquals(uri, out.clipData!!.getItemAt(0).uri)
+        assertTrue(out.has(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+    }
+
+    @Test fun chooser_whenTargetMissing_keepsGrantAndClip() {
+        val out = resolver.finalIntent(resolver.buildIntent(Target.Exact(papago), uri))
+        assertEquals(Intent.ACTION_CHOOSER, out.action)
+        assertTrue(out.has(Intent.FLAG_ACTIVITY_NEW_TASK))
+        @Suppress("DEPRECATION")
+        val inner = out.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
+        assertNull(inner.`package`)
+        assertNull(inner.component)
+    }
+
+    @Test fun finalIntent_whenResolvable_returnsSameIntent() {
         install(papago)
-        assertTrue(resolver.isAvailable(papago))
+        val i = resolver.buildIntent(Target.Exact(papago), uri)
+        assertSame(i, resolver.finalIntent(i))
     }
 
-    @Test fun isAvailable_uninstalled_isFalse() = assertFalse(resolver.isAvailable(papago))
+    // --- share targets / labels ---
+
+    @Test fun shareTargets_excludesExactSelfAndDev_keepsLookalike() {
+        val self = ComponentName("dev.dhnam.screentranslator", "dev.dhnam.screentranslator.Fake")
+        val dev = ComponentName("dev.dhnam.screentranslator.dev", "dev.dhnam.screentranslator.Fake")
+        val lookalike = ComponentName("dev.dhnam.screentranslatorfoo", "foo.Share")
+        install(papago); install(self); install(dev); install(lookalike)
+        val list = resolver.shareTargets()
+        assertTrue(papago in list && lookalike in list)
+        assertFalse(self in list || dev in list)
+    }
+
+    @Test fun shareTargets_fromDevBuild_alsoExcludesRelease() {
+        val release = ComponentName("dev.dhnam.screentranslator", "dev.dhnam.screentranslator.Fake")
+        install(release)
+        assertFalse(release in TargetResolver(pm, "dev.dhnam.screentranslator.dev").shareTargets())
+    }
 
     @Test fun label_activityDiffersFromApp_joinsWithDot() {
         install(lens, appLabel = "Google", activityLabel = "Lens")
@@ -89,30 +155,11 @@ class TargetResolverTest {
         assertEquals("Papago", resolver.label(papago))
     }
 
+    @Test fun label_disabledActivity_stillShowsAppName() {
+        install(papago, appLabel = "Papago", activityLabel = "Papago")
+        disable(papago)
+        assertEquals("Papago", resolver.label(papago))
+    }
+
     @Test fun label_unknown_isPackageName() = assertEquals(papago.packageName, resolver.label(papago))
-
-    @Test fun finalIntent_withoutComponent_isChooser() {
-        val out = resolver.finalIntent(resolver.buildIntent(null, uri))
-        assertEquals(Intent.ACTION_CHOOSER, out.action)
-        assertEquals(uri, out.clipData!!.getItemAt(0).uri)
-        assertTrue(out.has(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-    }
-
-    @Test fun chooser_whenTargetMissing_keepsGrantAndClip() {
-        val out = resolver.finalIntent(resolver.buildIntent(papago, uri))
-        assertEquals(Intent.ACTION_CHOOSER, out.action)
-        assertEquals(uri, out.clipData!!.getItemAt(0).uri)
-        assertTrue(out.has(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-        assertTrue(out.has(Intent.FLAG_ACTIVITY_NEW_TASK))
-        @Suppress("DEPRECATION")
-        val inner = out.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
-        assertNull(inner.`package`)
-        assertNull(inner.component)
-    }
-
-    @Test fun finalIntent_whenResolvable_returnsSameIntent() {
-        install(papago)
-        val i = resolver.buildIntent(papago, uri)
-        assertSame(i, resolver.finalIntent(i))
-    }
 }

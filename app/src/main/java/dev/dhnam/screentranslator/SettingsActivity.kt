@@ -186,7 +186,7 @@ class SettingsActivity : Activity() {
         val list = prefs.targetList
         for (flat in list.items) {
             val c = ComponentName.unflattenFromString(flat) ?: continue
-            val available = resolver.isAvailable(c)
+            val available = resolver.resolve(c) !is Target.Missing
             val name = resolver.label(c) + if (available) "" else " " + getString(R.string.not_installed)
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL

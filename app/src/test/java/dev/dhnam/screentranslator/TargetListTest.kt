@@ -39,6 +39,9 @@ class TargetListTest {
     @Test fun decode_normalizesBlankLinesAndStrayDefault() =
         assertEquals(TargetList(listOf("a/b", "c/d"), "a/b"), TargetList.decode("\na/b\n\na/b\nc/d", "z/z"))
 
+    @Test fun decode_dropsEntriesWithoutSlash() =
+        assertEquals(TargetList(listOf("a/b"), "a/b"), TargetList.decode("garbage\na/b", "garbage"))
+
     @Test fun decode_null_isEmpty() = assertEquals(empty, TargetList.decode(null, null))
 
     @Test fun migrate_google_defaultsToLens() = assertEquals(LENS, TargetList.migrate("GOOGLE").default)
