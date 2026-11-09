@@ -32,6 +32,10 @@ android {
         release {
             signingConfig = signingConfigs.findByName("release")
         }
+        // 개발용: 릴리스 앱과 나란히 설치되는 "화면 번역 (dev)"
+        debug {
+            applicationIdSuffix = ".dev"
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

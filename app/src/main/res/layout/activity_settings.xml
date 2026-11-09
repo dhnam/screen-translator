@@ -58,6 +58,13 @@
                 android:text="@string/target_google" />
         </RadioGroup>
 
+        <CheckBox
+            android:id="@+id/opening_toast"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/opening_toast_option" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

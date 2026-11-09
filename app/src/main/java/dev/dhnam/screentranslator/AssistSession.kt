@@ -42,16 +42,25 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
             val uri = ShotSharer.prepare(
                 store,
                 { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) },
-                { FileProvider.getUriForFile(context, AUTHORITY, it) },
+                { FileProvider.getUriForFile(context, "${context.packageName}.files", it) },
             )
             main.post {
                 if (uri == null) {
                     finishWith(R.string.save_failed)
                     return@post
                 }
+                val prefs = Prefs(context)
+                val target = prefs.target
                 val resolver = TargetResolver(context.packageManager)
-                val intent = resolver.finalIntent(resolver.buildIntent(Prefs(context).target, uri))
-                if (ShotSharer.tryStart { context.startActivity(intent) }) hide() else finishWith(R.string.open_failed)
+                val intent = resolver.finalIntent(resolver.buildIntent(target, uri))
+                if (ShotSharer.tryStart { context.startActivity(intent) }) {
+                    if (prefs.showOpeningToast) {
+                        Toast.makeText(context, target.openingMessage, Toast.LENGTH_SHORT).show()
+                    }
+                    hide()
+                } else {
+                    finishWith(R.string.open_failed)
+                }
             }
         }.start()
     }
@@ -69,6 +78,5 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
 
     private companion object {
         const val SCREENSHOT_TIMEOUT_MS = 2000L
-        const val AUTHORITY = "dev.dhnam.screentranslator.files"
     }
 }

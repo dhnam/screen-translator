@@ -20,6 +20,18 @@ class PrefsTest {
         assertEquals(Target.GOOGLE, Prefs(ctx).target)
     }
 
+    @Test fun openingToast_default_isOff() = assertEquals(false, Prefs(ctx).showOpeningToast)
+
+    @Test fun openingToast_roundTrip() {
+        Prefs(ctx).showOpeningToast = true
+        assertEquals(true, Prefs(ctx).showOpeningToast)
+    }
+
+    @Test fun openingMessage_matchesTarget() {
+        assertEquals(R.string.opening_papago, Target.PAPAGO.openingMessage)
+        assertEquals(R.string.opening_google, Target.GOOGLE.openingMessage)
+    }
+
     @Test fun prefs_unknownStoredValue_fallsBackToPapago() {
         ctx.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putString("target", "BING").commit()
         assertEquals(Target.PAPAGO, Prefs(ctx).target)

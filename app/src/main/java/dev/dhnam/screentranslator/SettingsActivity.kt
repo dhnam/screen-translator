@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.RadioGroup
 import android.widget.TextView
 import java.io.File
@@ -31,6 +32,11 @@ class SettingsActivity : Activity() {
         group.check(if (prefs.target == Target.GOOGLE) R.id.target_google else R.id.target_papago)
         group.setOnCheckedChangeListener { _, id ->
             prefs.target = if (id == R.id.target_google) Target.GOOGLE else Target.PAPAGO
+        }
+
+        findViewById<CheckBox>(R.id.opening_toast).apply {
+            isChecked = prefs.showOpeningToast
+            setOnCheckedChangeListener { _, checked -> prefs.showOpeningToast = checked }
         }
 
         val shots = File(cacheDir, "shots")
