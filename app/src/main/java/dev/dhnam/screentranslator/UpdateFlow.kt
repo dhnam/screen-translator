@@ -1,5 +1,6 @@
 package dev.dhnam.screentranslator
 
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.VisibleForTesting
@@ -37,7 +38,22 @@ object UpdateFlow {
         val n = state.next(e)
         if (n == state) return
         state = n
+        if (n != UpdateUi.AwaitingInstall) confirmIntent = null
         listener?.invoke(n)
+    }
+
+    /**
+     * 시스템 설치 확인 창 인텐트. 확인 창을 화면 밖을 눌러 닫았거나(세션은 남고 결과 알림은 오지 않음)
+     * 확인 창이 뜨지 못했을 때 [설치 확인 다시 열기]로 다시 띄우는 데 쓴다. "설치 확인 대기"일 때만 있다.
+     */
+    @Volatile var confirmIntent: Intent? = null
+        private set
+
+    /** 설치 결과 수신기가 확인 창을 띄울 때 부른다. 화면이 보고 있으면 버튼이 켜지도록 다시 그리게 한다. */
+    fun setConfirmIntent(intent: Intent) {
+        if (state != UpdateUi.AwaitingInstall) return
+        confirmIntent = intent
+        listener?.invoke(state)
     }
 
     /** 확정한 설치 세션 번호. "설치 확인 대기"일 때만 의미가 있다. */
@@ -98,6 +114,7 @@ object UpdateFlow {
         state = UpdateUi.Idle
         cancelRequested = false
         pendingSessionId = null
+        confirmIntent = null
         listener = null
         background = { Thread(it).start() }
         main = { mainHandler.post(it) }

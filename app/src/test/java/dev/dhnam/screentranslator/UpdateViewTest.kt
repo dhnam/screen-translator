@@ -26,6 +26,11 @@ class UpdateViewTest {
         assertFalse(awaiting.enabled)
     }
 
+    @Test fun awaitingInstall_withConfirm_showsReopen() = assertEquals(
+        UpdateView(R.string.update_awaiting_install, emptyList(), UpdateButton.REOPEN, true),
+        UpdateView.of(UpdateUi.AwaitingInstall, newer, "0.3.0", canReopen = true),
+    )
+
     @Test fun checkFailed_showsRetry() = assertEquals(
         UpdateView(R.string.update_failed, emptyList(), UpdateButton.RETRY, true),
         UpdateView.of(UpdateUi.CheckFailed, null, "0.3.0"),

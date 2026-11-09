@@ -18,7 +18,9 @@ class InstallResultReceiver : BroadcastReceiver() {
                     UpdateFlow.dispatch(UpdateEvent.InstallFinished)
                     return
                 }
-                context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                UpdateFlow.setConfirmIntent(confirm)
+                context.startActivity(confirm)
             }
             else -> {
                 // 성공·실패·사용자 취소 모두 "설치 확인 대기"를 끝낸다.

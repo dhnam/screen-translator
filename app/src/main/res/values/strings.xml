@@ -38,4 +38,5 @@
     <string name="update_awaiting_install">Waiting for install confirmation…</string>
     <string name="update_download_failed">Couldn\'t download the update</string>
     <string name="crop_option">Remove status and navigation bars from the capture</string>
+    <string name="update_reopen_confirm">Reopen install prompt</string>
 </resources>

@@ -108,14 +108,27 @@ class SettingsActivity : Activity() {
     private fun renderUpdate(state: UpdateUi) {
         val current = UpdateChecker(this).currentVersion()
         val latest = prefs.latestRelease
-        val view = UpdateView.of(state, latest, current)
+        val view = UpdateView.of(state, latest, current, canReopen = UpdateFlow.confirmIntent != null)
         updateStatus.text = getString(view.text, *view.args.toTypedArray())
         updateAction.isEnabled = view.enabled
         when (view.button) {
             UpdateButton.CHECK -> { updateAction.setText(R.string.update_check_now); updateAction.setOnClickListener { startCheck() } }
             UpdateButton.RETRY -> { updateAction.setText(R.string.update_retry); updateAction.setOnClickListener { startCheck() } }
             UpdateButton.INSTALL -> { updateAction.setText(R.string.update_install); updateAction.setOnClickListener { latest?.let(::startInstall) } }
+            UpdateButton.REOPEN -> { updateAction.setText(R.string.update_reopen_confirm); updateAction.setOnClickListener { reopenConfirm() } }
             UpdateButton.NONE -> updateAction.setOnClickListener(null)
+        }
+    }
+
+    /** 닫혔거나 뜨지 못한 시스템 설치 확인 창을 다시 띄운다. 같은 세션이라 새로 받지 않는다. */
+    private fun reopenConfirm() {
+        val confirm = UpdateFlow.confirmIntent ?: return
+        try {
+            startActivity(confirm)
+        } catch (e: ActivityNotFoundException) {
+            UpdateFlow.dispatch(UpdateEvent.InstallFinished)
+        } catch (e: SecurityException) {
+            UpdateFlow.dispatch(UpdateEvent.InstallFinished)
         }
     }
 
