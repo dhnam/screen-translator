@@ -8,7 +8,7 @@
 
 ## 설치와 설정
 
-1. APK를 설치합니다(아래 "빌드" 참고).
+1. [Releases](https://github.com/dhnam/screen-translator/releases)에서 최신 `screen-translator-vX.Y.Z.apk`를 받아 설치합니다. 직접 빌드해도 됩니다(아래 "빌드" 참고).
 2. 앱 아이콘 **화면 번역**을 열고 **알림 권한을 허용**합니다. One UI는 알림 권한이 없는 앱의 안내 토스트를 막습니다.
 3. **어시스턴트 설정 열기**를 누르거나, 설정 > 애플리케이션 > 기본 앱 선택 > **디지털 어시스턴트 앱**에서 **화면 번역**을 고릅니다.
 4. 같은 화면에서 **화면의 텍스트 사용**과 **화면 이미지 사용**을 둘 다 켭니다.
@@ -37,6 +37,18 @@ adb pair <IP>:<페어링 포트> <코드>
 adb connect <IP>:<포트>
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+## 릴리스
+
+`v*` 태그를 push하면 GitHub Actions(`.github/workflows/release.yml`)가 테스트를 돌리고, 서명된 릴리스 APK를 빌드해 Release에 첨부합니다.
+
+```bash
+git tag v0.1.1 && git push origin v0.1.1
+```
+
+- 서명 키는 저장소 Secrets(`KEYSTORE_B64`, `KEYSTORE_PASSWORD`)에 있습니다. 로컬에서 릴리스 빌드를 하려면 `KEYSTORE_FILE`, `KEYSTORE_PASSWORD` 환경 변수를 지정합니다.
+- 릴리스 인증서 SHA-256: `56:14:E0:DB:F9:DE:BE:DC:BE:17:7E:84:D9:AB:5A:C8:53:A3:90:E7:E9:35:12:2F:57:A2:C7:DE:F2:A0:41:9C`
+- 직접 빌드한 디버그 APK는 다른 키로 서명돼 있어서, 릴리스 APK로 바꾸려면 한 번 지우고 다시 설치해야 합니다.
 
 ## 구조
 

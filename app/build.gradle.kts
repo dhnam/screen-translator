@@ -10,8 +10,28 @@ android {
         applicationId = "dev.dhnam.screentranslator"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        // CI에서 VERSION_CODE / VERSION_NAME 환경 변수로 덮어쓴다.
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("VERSION_NAME") ?: "0.1.0"
+    }
+    // 릴리스 서명: KEYSTORE_FILE과 KEYSTORE_PASSWORD 환경 변수가 있을 때만 쓴다.
+    // (키 별칭은 release, keystore 비밀번호와 키 비밀번호는 같다.)
+    val keystoreFile = System.getenv("KEYSTORE_FILE")?.let { file(it) }
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+    signingConfigs {
+        if (keystoreFile != null && keystorePassword != null) {
+            create("release") {
+                storeFile = keystoreFile
+                storePassword = keystorePassword
+                keyAlias = "release"
+                keyPassword = keystorePassword
+            }
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.findByName("release")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
