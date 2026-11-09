@@ -15,7 +15,8 @@
     <application
         android:label="@string/app_name"
         android:icon="@android:drawable/ic_menu_crop"
-        android:allowBackup="false">
+        android:allowBackup="false"
+        android:localeConfig="@xml/locales_config">
 
         <activity
             android:name=".SettingsActivity"
