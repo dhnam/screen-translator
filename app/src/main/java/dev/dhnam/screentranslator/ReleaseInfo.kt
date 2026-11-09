@@ -6,6 +6,13 @@ import org.json.JSONObject
 /** GitHub 최신 릴리스 중 업데이트에 필요한 값. `sha256`은 소문자 hex이고 없을 수 있다. */
 data class ReleaseInfo(val tag: String, val url: String, val size: Long, val sha256: String?) {
     companion object {
+        /**
+         * 받기 직전에 최신 릴리스를 다시 조회한 결과. 저장된 결과가 오래됐어도 가장 새 버전을 받는다.
+         * 조회가 실패하면 저장된 것을 쓰고, 더 이상 새 버전이 없으면 null.
+         */
+        fun refreshed(cached: ReleaseInfo, refresh: () -> ReleaseInfo?): ReleaseInfo? =
+            try { refresh() } catch (e: java.io.IOException) { cached }
+
         /** `releases/latest` 응답을 해석한다. APK 첨부가 없거나 형식이 다르면 null. */
         fun parse(json: String): ReleaseInfo? = try {
             val root = JSONObject(json)

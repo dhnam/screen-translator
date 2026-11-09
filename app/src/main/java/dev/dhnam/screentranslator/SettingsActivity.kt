@@ -133,9 +133,13 @@ class SettingsActivity : Activity() {
         }
         val app = applicationContext
         val installer = UpdateInstaller(app)
+        val checker = UpdateChecker(app)
         UpdateFlow.startInstall({ progress ->
+            // 저장된 결과가 오래됐을 수 있으므로(예: 그 사이 더 새 버전이 나옴) 받기 직전에 다시 조회한다.
+            val target = ReleaseInfo.refreshed(info) { checker.check() }
+                ?: throw IOException(UpdateInstaller.NO_UPDATE)
             var lastPct = -1
-            installer.install(info, isCancelled = { UpdateFlow.cancelRequested }) { pct ->
+            installer.install(target, isCancelled = { UpdateFlow.cancelRequested }) { pct ->
                 if (pct != lastPct) { lastPct = pct; progress(pct) }
             }
         }) { e ->

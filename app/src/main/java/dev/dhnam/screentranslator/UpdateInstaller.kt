@@ -68,6 +68,8 @@ class UpdateInstaller(private val context: Context) {
     companion object {
         const val DIGEST_MISMATCH = "digest mismatch"
         const val CANCELLED = "cancelled"
+        /** 다시 조회해 보니 새 버전이 없음(이미 최신). 실패로 알리지 않는다. */
+        const val NO_UPDATE = "no update"
         private const val TIMEOUT_MS = 15_000
     }
 }

@@ -22,6 +22,16 @@ class ReleaseInfoTest {
 
     @Test fun parse_noApkAsset_returnsNull() = assertNull(ReleaseInfo.parse(json(notes)))
 
+    private val cached = ReleaseInfo("v0.3.0", "https://x/old.apk", 1, null)
+    private val newest = ReleaseInfo("v0.4.0", "https://x/new.apk", 2, null)
+
+    @Test fun refreshed_usesNewestRelease() = assertEquals(newest, ReleaseInfo.refreshed(cached) { newest })
+
+    @Test fun refreshed_noNewerAnymore_isNull() = assertNull(ReleaseInfo.refreshed(cached) { null })
+
+    @Test fun refreshed_checkFails_fallsBackToCached() =
+        assertEquals(cached, ReleaseInfo.refreshed(cached) { throw java.io.IOException("offline") })
+
     @Test fun parse_malformed_returnsNull() {
         assertNull(ReleaseInfo.parse("{"))
         assertNull(ReleaseInfo.parse("""{"message":"API rate limit exceeded"}"""))

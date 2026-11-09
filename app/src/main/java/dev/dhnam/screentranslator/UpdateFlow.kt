@@ -80,7 +80,7 @@ object UpdateFlow {
                     dispatch(UpdateEvent.Committed)
                 })
             } catch (e: IOException) {
-                val cancelled = e.message == UpdateInstaller.CANCELLED
+                val cancelled = e.message == UpdateInstaller.CANCELLED || e.message == UpdateInstaller.NO_UPDATE
                 main(Runnable {
                     dispatch(if (cancelled) UpdateEvent.Cancelled else UpdateEvent.DownloadError)
                     if (!cancelled) onError(e)

@@ -84,6 +84,13 @@ class UpdateFlowTest {
         assertEquals(null, error)
     }
 
+    @Test fun startInstall_noUpdate_isIdleWithoutError() {
+        var error: IOException? = null
+        UpdateFlow.startInstall({ throw IOException(UpdateInstaller.NO_UPDATE) }) { error = it }
+        assertEquals(UpdateUi.Idle, UpdateFlow.state)
+        assertEquals(null, error)
+    }
+
     @Test fun startInstall_failure_reportsError() {
         var error: IOException? = null
         UpdateFlow.startInstall({ throw IOException("HTTP 500") }) { error = it }
