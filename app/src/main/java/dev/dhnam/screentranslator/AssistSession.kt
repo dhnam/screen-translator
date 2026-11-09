@@ -74,7 +74,8 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
      * (세션 창 인셋은 아직 없거나 세션 창 기준이다). 알 수 없거나 이상하면 원본을 그대로 쓴다.
      */
     private fun cropSystemBars(src: Bitmap): Bitmap = try {
-        val metrics = context.getSystemService(WindowManager::class.java).currentWindowMetrics
+        // 캡처는 항상 화면 전체이므로, 앱 창 크기가 아니라 화면 전체 기준(maximumWindowMetrics)을 쓴다.
+        val metrics = context.getSystemService(WindowManager::class.java).maximumWindowMetrics
         val bounds = metrics.bounds
         val i = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
         val r = CropRect.of(src.width, src.height, bounds.width(), bounds.height(), i.left, i.top, i.right, i.bottom)
