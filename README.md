@@ -7,7 +7,7 @@ It replaces the "translate what's on screen" flow that disappeared when Google A
 
 - Screenshots are stored only in the app's private cache (`cache/shots/`) and never appear in the gallery. Screenshots older than 10 minutes are deleted on the next run.
 - Tested on: Galaxy Note 20 (SM-N981N, Android 13)
-- Language: Korean on Korean-language phones, English everywhere else. On Android 13+ you can change just this app's language in Settings > General > App languages (the launcher keeps showing the app name in the system language).
+- Language: Korean on Korean-language phones, English everywhere else. On Android 13+ you can change just this app's language in Settings > General > App languages.
 
 ## Install and set up
 
